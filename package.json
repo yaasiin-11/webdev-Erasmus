@@ -1,0 +1,15 @@
+{
+  "name": "webdev-erasmus",
+  "version": "1.0.0",
+  "description": "StudyHub - Study groups platform",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "mcp": "node mcp-server/server.js",
+    "start": "node src/server.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

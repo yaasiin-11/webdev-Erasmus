@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StudyHub - Study Groups</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <h1>StudyHub</h1>
+    <div id="user-nav" class="hidden">
+      <span id="user-profile-name"></span>
+    </div>
+  </header>
+
+  <main>
+    <!-- Sign-in View -->
+    <section id="auth-section">
+      <h2>Sign in to StudyHub</h2>
+      <form id="login-form">
+        <label>
+          Email address
+          <input type="email" id="email" name="email" required placeholder="student@example.com">
+        </label>
+        <label>
+          Password
+          <input type="password" id="password" name="password" required placeholder="••••••••">
+        </label>
+        <button type="submit">Sign in</button>
+        <div id="login-error" class="error-message hidden"></div>
+      </form>
+    </section>
+
+    <!-- Study Groups List View -->
+    <section id="groups-section" class="hidden">
+      <h2>Active Study Groups</h2>
+      <div id="groups-list"></div>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>

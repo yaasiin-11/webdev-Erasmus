@@ -50,18 +50,22 @@ function handle(msg) {
   if (msg.method === 'tools/call') {
     const name = msg.params.name;
     const args = msg.params.arguments || {};
+
     if (name === 'find_lecture') {
       const lecture = lectures.find((l) => l.number === args.number);
+
       if (!lecture) {
         return textResult(msg.id, 'There is no lecture ' + args.number + '. The course has lectures 1 to 12.', true);
       }
       return textResult(msg.id, 'Lecture ' + lecture.number + ': ' + lecture.title + '. Topics: ' + lecture.topics, false);
     }
+
     if (name === 'list_lectures') {
       return textResult(msg.id, lectures.map((l) => l.number + '. ' + l.title).join('\n'), false);
     }
     return { jsonrpc: '2.0', id: msg.id, error: { code: -32602, message: 'Unknown tool: ' + name } };
   }
+  
   if (msg.id !== undefined) {
     return { jsonrpc: '2.0', id: msg.id, error: { code: -32601, message: 'Unknown method: ' + msg.method } };
   }
