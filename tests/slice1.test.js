@@ -23,3 +23,13 @@ test('AC-11 study groups list contains subject title, meeting topic, and member 
   assert.ok(group.meeting_topic);
   assert.notStrictEqual(group.member_count, undefined);
 });
+
+test('login fails with non-existent user email', () => {
+  const result = authenticateUser('nonexistent@example.com', 'password123');
+  assert.strictEqual(result, null);
+});
+
+test('login fails with incorrect password', () => {
+  const result = authenticateUser('student@example.com', 'wrongpassword');
+  assert.strictEqual(result, null);
+});
