@@ -41,22 +41,27 @@ db.exec(`
   );
 `);
 
-// Seed initial data if empty
-const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
-if (userCount === 0) {
-  // Hash password "password123" with a simple pbkdf2 or scrypt or plain hash for demo seeding
+// Seed initial data if missing (idempotent)
+const existingUser = db.prepare('SELECT id FROM users WHERE email = ?').get('student@example.com');
+let userId = existingUser ? existingUser.id : null;
+
+if (!userId) {
   const salt = crypto.randomBytes(16).toString('hex');
   const hash = crypto.scryptSync('password123', salt, 64).toString('hex');
   const passwordHash = `${salt}:${hash}`;
 
-  const insertUser = db.prepare('INSERT INTO users (email, password_hash, name) VALUES (?, ?, ?)');
-  const userId = insertUser.run('student@example.com', passwordHash, 'Jane Doe').lastInsertRowid;
+  const insertUser = db.prepare('INSERT OR IGNORE INTO users (email, password_hash, name) VALUES (?, ?, ?)');
+  const res = insertUser.run('student@example.com', passwordHash, 'Jane Doe');
+  userId = res.lastInsertRowid || db.prepare('SELECT id FROM users WHERE email = ?').get('student@example.com')?.id;
+}
 
+const existingGroup = db.prepare('SELECT id FROM study_groups LIMIT 1').get();
+if (!existingGroup && userId) {
   const insertGroup = db.prepare('INSERT INTO study_groups (title, description, study_field, meeting_topic) VALUES (?, ?, ?, ?)');
   const group1Id = insertGroup.run('Advanced Mathematics Study Circle', 'Preparing for university calculus finals.', 'Mathematics', 'Multivariable Calculus').lastInsertRowid;
-  const group2Id = insertGroup.run('Civil Service Exam Prep', 'Group revision for administrative services exam.', 'Civil Service', 'Public Administration').lastInsertRowid;
+  insertGroup.run('Civil Service Exam Prep', 'Group revision for administrative services exam.', 'Civil Service', 'Public Administration');
 
-  const insertMembership = db.prepare('INSERT INTO group_memberships (user_id, group_id) VALUES (?, ?)');
+  const insertMembership = db.prepare('INSERT OR IGNORE INTO group_memberships (user_id, group_id) VALUES (?, ?)');
   insertMembership.run(userId, group1Id);
 }
 
