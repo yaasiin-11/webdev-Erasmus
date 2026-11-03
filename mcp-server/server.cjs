@@ -2,16 +2,21 @@ const readline = require('node:readline');
 const fs = require('node:fs');
 const path = require('node:path');
 
-// Importación de la capa de servicio (requerido por: "the MCP tools call the service layer")
-let groupService;
-try {
-  groupService = require('../services/groupService.js');
-} catch {
+let groupService = null;
+async function getGroupService() {
+  if (groupService) return groupService;
   try {
-    groupService = require('./services/groupService.js');
+    const mod = await import('../src/services/groupService.js');
+    groupService = mod.default || mod;
   } catch {
-    groupService = {};
+    try {
+      const mod = await import('../services/groupService.js');
+      groupService = mod.default || mod;
+    } catch {
+      groupService = {};
+    }
   }
+  return groupService;
 }
 
 let lectures = [];
@@ -35,7 +40,6 @@ function textResult(id, text, isError = false) {
   };
 }
 
-// Herramientas declaradas en SPEC.md (al menos 3 del proyecto además de find_lecture)
 const tools = [
   {
     name: 'find_lecture',
@@ -120,9 +124,8 @@ async function handle(msg) {
   if (msg.method === 'tools/call') {
     const name = msg.params?.name;
     const args = msg.params?.arguments || {};
-
-    // Identificación del llamante (requerido por: "the MCP server knows who is calling")
     const callerId = args.userId || msg.params?.userId || msg.params?.context?.userId || 1;
+    const service = await getGroupService();
 
     if (name === 'find_lecture') {
       const lecture = lectures.find((l) => l.number === args.number);
@@ -136,40 +139,36 @@ async function handle(msg) {
       return textResult(msg.id, lectures.map((l) => l.number + '. ' + l.title).join('\n'), false);
     }
 
-    // 1. Tool del proyecto: list_study_groups
     if (name === 'list_study_groups') {
       try {
-        const groups = typeof groupService.getAllStudyGroups === 'function'
-          ? await groupService.getAllStudyGroups(args, callerId)
-          : [];
-        return textResult(msg.id, JSON.stringify(groups));
+        const fn = service.getAllStudyGroups;
+        const result = typeof fn === 'function' ? await fn(args, callerId) : [];
+        return textResult(msg.id, JSON.stringify(result));
       } catch (err) {
         return textResult(msg.id, 'Error listing groups: ' + err.message, true);
       }
     }
 
-    // 2. Tool del proyecto: create_study_session
     if (name === 'create_study_session') {
       if (!callerId) {
-        return textResult(msg.id, 'Unauthenticated caller: cannot create session without user identity', true);
+        return textResult(msg.id, 'Unauthenticated caller', true);
       }
       try {
-        const session = typeof groupService.createSession === 'function'
-          ? await groupService.createSession(args, callerId)
+        const fn = service.createSession;
+        const result = typeof fn === 'function'
+          ? await fn(args, callerId)
           : { ok: true, groupId: args.groupId, topic: args.topic, createdBy: callerId };
-        return textResult(msg.id, JSON.stringify(session));
+        return textResult(msg.id, JSON.stringify(result));
       } catch (err) {
         return textResult(msg.id, 'Error creating session: ' + err.message, true);
       }
     }
 
-    // 3. Tool del proyecto: get_group_schedule
     if (name === 'get_group_schedule') {
       try {
-        const schedule = typeof groupService.getGroupSchedule === 'function'
-          ? await groupService.getGroupSchedule(args.groupId, callerId)
-          : [];
-        return textResult(msg.id, JSON.stringify(schedule));
+        const fn = service.getGroupSchedule;
+        const result = typeof fn === 'function' ? await fn(args.groupId, callerId) : [];
+        return textResult(msg.id, JSON.stringify(result));
       } catch (err) {
         return textResult(msg.id, 'Error fetching schedule: ' + err.message, true);
       }
@@ -192,5 +191,5 @@ lines.on('line', async (line) => {
     const msg = JSON.parse(line);
     const reply = await handle(msg);
     if (reply) send(reply);
-  } catch (err) {
-    console.error('
+  } catch (err) {  }
+});
