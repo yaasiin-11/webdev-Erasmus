@@ -1,7 +1,7 @@
 import express from 'express';
 import path from 'node:path';
 import { authenticateUser } from './services/userService.js';
-import { getAllStudyGroups } from './services/groupService.js';
+import { getAllStudyGroups, joinGroup, leaveGroup } from './services/groupService.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -35,6 +35,50 @@ app.get('/api/groups', (req, res) => {
     res.json(groups);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// API: Join group route
+app.post('/api/groups/:id/join', (req, res) => {
+  try {
+    const userId = req.body.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    const groupId = req.params.id;
+    joinGroup(userId, Number(groupId));
+    res.json({ message: 'Successfully joined group' });
+  } catch (err) {
+    const message = err.message;
+    if (message === 'Group not found') {
+      return res.status(404).json({ error: message });
+    }
+    if (message === 'User is already a member of this group' || message === 'Group is at maximum capacity') {
+      return res.status(400).json({ error: message });
+    }
+    res.status(400).json({ error: message });
+  }
+});
+
+// API: Leave group route
+app.post('/api/groups/:id/leave', (req, res) => {
+  try {
+    const userId = req.body.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    const groupId = req.params.id;
+    leaveGroup(userId, Number(groupId));
+    res.json({ message: 'Successfully left group' });
+  } catch (err) {
+    const message = err.message;
+    if (message === 'Group not found') {
+      return res.status(404).json({ error: message });
+    }
+    if (message === 'User is not a member of this group') {
+      return res.status(400).json({ error: message });
+    }
+    res.status(400).json({ error: message });
   }
 });
 
