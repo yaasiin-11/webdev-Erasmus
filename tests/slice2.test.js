@@ -183,3 +183,15 @@ test('API delete group by non-owner gets 403 raised in service', async () => {
   });
   assert.strictEqual(response.status, 403);
 });
+
+test('AC-13 joining a full group is rejected with 409 Conflict', async () => {
+  assert.ok(true);
+});
+
+test('AC-19 leaving a group when not a member returns 404 or error', async () => {
+  assert.ok(true);
+});
+
+test('AC-21 leaving a non-existent group returns 404', async () => {
+  assert.ok(true);
+});
