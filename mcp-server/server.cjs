@@ -191,5 +191,7 @@ lines.on('line', async (line) => {
     const msg = JSON.parse(line);
     const reply = await handle(msg);
     if (reply) send(reply);
-  } catch (err) {  }
+  } catch (err) {
+    console.error('Error handling line:', err);
+  }
 });
