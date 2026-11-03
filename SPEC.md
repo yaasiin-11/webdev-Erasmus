@@ -78,6 +78,20 @@
 - [AC-10] When a user submits valid login credentials, they are redirected to the study groups page and see the list of available groups.
 - [AC-11] On the study groups list screen, each listed group displays its subject title, meeting topic, and member count.
 
+### Slice 2: join and leave study groups
+- [AC-12] When an authenticated user clicks "Join" on a group with available spots, they become a member, the member count increments by 1, and the action button changes to "Leave".
+- [AC-13] When a group reaches its maximum capacity, the "Join" button is disabled and displays "Full", and joining requests return an error.
+- [AC-14] When an active member of a group clicks "Leave", their membership is removed, the member count decrements by 1, and the button changes back to "Join".
+- [AC-15] When an authenticated user is already a member of a group, duplicate join attempts are rejected without altering the member count.
+- [AC-16] On the study groups list screen, each group displays its current capacity alongside the member count (e.g., "3 / 5 members").
+- [AC-17] When a user attempts to join a group that is at maximum capacity, the request is refused with status 400 or 409, an error message is returned, and the member count and database remain unchanged.
+- [AC-18] When an authenticated user attempts to join a non-existent group, the request is refused with status 404, an error message is returned, and no membership is created in the database.
+- [AC-19] When an authenticated user attempts to leave a group they are not a member of, the request is refused with status 400 or 404, an error message is returned, and no membership change occurs in the database.
+- [AC-20] When an unauthenticated user attempts to join or leave a study group, the request is refused with status 401, an error message is returned, and no membership changes occur in the database.
+- [AC-21] When an authenticated user attempts to leave a non-existent group, the request is refused with status 404, an error message is returned, and the database remains unchanged.
+
+
+
 ## Traceability
 <!-- Filled in from Exercise 3 onward: each AC id, and the test that names it. -->
 | Criterion | Test |
@@ -86,6 +100,17 @@
 | AC-3 | tests/slice1.test.js |
 | AC-10 | tests/slice1.test.js |
 | AC-11 | tests/slice1.test.js |
+| AC-12 | |
+| AC-13 | |
+| AC-14 | |
+| AC-15 | |
+| AC-16 | |
+| AC-17 | |
+| AC-18 | |
+| AC-19 | |
+| AC-20 | |
+| AC-21 | |
+
 
 ## Spec vs result
 - Slice 1 criteria (AC-9, AC-10, AC-11) have been planned and are ready for implementation. No criteria missed or reinterpreted.

@@ -58,6 +58,8 @@ that talks to the database directly is a second, unguarded way into your data: n
 - adding, renaming or removing an MCP tool
 - changing a coverage threshold
 - sending user data to a third-party model
+- modifying group capacity limits or membership validation rules
+- bypassing group membership authorization or capacity checks
 
 ## Never
 - commit secrets, passwords, API keys or an OAuth client secret
