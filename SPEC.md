@@ -100,17 +100,28 @@
 | AC-3 | tests/slice1.test.js |
 | AC-10 | tests/slice1.test.js |
 | AC-11 | tests/slice1.test.js |
-| AC-12 | |
-| AC-13 | |
-| AC-14 | |
-| AC-15 | |
-| AC-16 | |
-| AC-17 | |
-| AC-18 | |
-| AC-19 | |
-| AC-20 | |
-| AC-21 | |
+| AC-12 | tests/slice2.test.js |
+| AC-13 | tests/slice2.test.js |
+| AC-14 | tests/slice2.test.js |
+| AC-15 | tests/slice2.test.js |
+| AC-16 | tests/slice2.test.js |
+| AC-17 | tests/slice2.test.js |
+| AC-18 | tests/slice2.test.js |
+| AC-19 | tests/slice2.test.js |
+| AC-20 | tests/slice2.test.js |
+| AC-21 | tests/slice2.test.js |
 
 
 ## Spec vs result
 - Slice 1 criteria (AC-9, AC-10, AC-11) have been planned and are ready for implementation. No criteria missed or reinterpreted.
+
+## Architecture
+
+One request, `POST /api/groups/:id/join`, through every layer:
+1. `src/routes/groups.js` matches the path and verifies session auth; missing session returns 401 Unauthorized before any service call.
+2. The route extracts `userId` from session and `groupId` from params, passing them to `joinGroup(userId, groupId)` in `src/services/groupService.js`.
+3. `src/services/groupService.js` holds every business rule: validates group existence, rejects duplicates, and checks `member_count < max_capacity`, throwing an error mapped to 409 Conflict if full.
+4. Database queries run via `src/db.js`, inserting into `group_members`.
+5. Back out: in the browser, `public/app.js` catches errors and displays readable feedback, updates the member count, and sets button states.
+
+Where this codebase does not match its own layering: `getAllStudyGroups` in `src/services/groupService.js` executes direct aggregation queries with minimal business rules rather than using an isolated repository layer. It is kept to ensure routes only call services.

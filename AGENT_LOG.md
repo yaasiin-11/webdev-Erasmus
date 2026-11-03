@@ -113,3 +113,8 @@ Changed in review:
 **Autonomy:** The agent works within one specific step of the plan at a time. It cannot proceed to the next step without my approval.
 **Checkpoints:** `npm test` green before each commit, manual `git diff` inspection, and strict permission prompts for any action in "Always ask before".
 
+## What the agent did that I did not ask for
+- Attempted to edit `src/db.js` directly instead of writing an isolated file in `migrations/`.
+- Proposed `400 Bad Request` instead of `409 Conflict` for full group capacity and duplicate joins.
+- Missed UI loading and empty state containers in the initial frontend markup.
+
