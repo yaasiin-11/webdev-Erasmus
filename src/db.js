@@ -27,6 +27,7 @@ db.exec(`
     description TEXT NOT NULL,
     study_field TEXT NOT NULL,
     meeting_topic TEXT NOT NULL,
+    max_capacity INTEGER DEFAULT 5,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
