@@ -44,3 +44,18 @@ export function leaveGroup(userId, groupId) {
   db.prepare('DELETE FROM group_memberships WHERE user_id = ? AND group_id = ?').run(userId, groupId);
   return { success: true };
 }
+
+export function deleteGroup(userId, groupId) {
+  const group = db.prepare('SELECT * FROM study_groups WHERE id = ?').get(groupId);
+  if (!group) {
+    throw new Error('Group not found');
+  }
+
+  if (group.creator_id !== userId) {
+    throw new Error('Forbidden: only the group owner can delete this group');
+  }
+
+  db.prepare('DELETE FROM group_memberships WHERE group_id = ?').run(groupId);
+  db.prepare('DELETE FROM study_groups WHERE id = ?').run(groupId);
+  return { success: true };
+}

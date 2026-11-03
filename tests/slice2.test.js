@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert';
 import http from 'node:http';
 import express from 'express';
-import { joinGroup, leaveGroup, getAllStudyGroups } from '../src/services/groupService.js';
+import { joinGroup, leaveGroup, getAllStudyGroups, deleteGroup } from '../src/services/groupService.js';
 import db from '../src/db.js';
 
 // Setup test app and server for API integration tests
@@ -46,6 +46,27 @@ app.post('/api/groups/:id/leave', (req, res) => {
     }
     if (message === 'User is not a member of this group') {
       return res.status(400).json({ error: message });
+    }
+    res.status(400).json({ error: message });
+  }
+});
+
+app.delete('/api/groups/:id', (req, res) => {
+  const userId = req.body.userId;
+  if (!userId) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  try {
+    const groupId = req.params.id;
+    deleteGroup(userId, Number(groupId));
+    res.json({ message: 'Successfully deleted group' });
+  } catch (err) {
+    const message = err.message;
+    if (message === 'Group not found') {
+      return res.status(404).json({ error: message });
+    }
+    if (message.includes('Forbidden')) {
+      return res.status(403).json({ error: message });
     }
     res.status(400).json({ error: message });
   }
@@ -142,4 +163,23 @@ test('AC-14 API leave group success', async () => {
   const data = await response.json();
   assert.strictEqual(response.status, 200);
   assert.strictEqual(data.message, 'Successfully left group');
+});
+
+test('API delete group without session gets 401 before service is called', async () => {
+  const response = await fetch(`${baseUrl}/api/groups/1`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({})
+  });
+  assert.strictEqual(response.status, 401);
+});
+
+test('API delete group by non-owner gets 403 raised in service', async () => {
+  // Group 1 creator is user 1 (Jane Doe). User 2 tries to delete it.
+  const response = await fetch(`${baseUrl}/api/groups/1`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId: 2 })
+  });
+  assert.strictEqual(response.status, 403);
 });

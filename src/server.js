@@ -1,7 +1,7 @@
 import express from 'express';
 import path from 'node:path';
 import { authenticateUser } from './services/userService.js';
-import { getAllStudyGroups, joinGroup, leaveGroup } from './services/groupService.js';
+import { getAllStudyGroups, joinGroup, leaveGroup, deleteGroup } from './services/groupService.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -77,6 +77,28 @@ app.post('/api/groups/:id/leave', (req, res) => {
     }
     if (message === 'User is not a member of this group') {
       return res.status(400).json({ error: message });
+    }
+    res.status(400).json({ error: message });
+  }
+});
+
+// API: Delete group route (Owner-only action)
+app.delete('/api/groups/:id', (req, res) => {
+  const userId = req.body.userId;
+  if (!userId) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  try {
+    const groupId = req.params.id;
+    deleteGroup(userId, Number(groupId));
+    res.json({ message: 'Successfully deleted group' });
+  } catch (err) {
+    const message = err.message;
+    if (message === 'Group not found') {
+      return res.status(404).json({ error: message });
+    }
+    if (message.includes('Forbidden')) {
+      return res.status(403).json({ error: message });
     }
     res.status(400).json({ error: message });
   }
