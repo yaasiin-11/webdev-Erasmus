@@ -1,6 +1,6 @@
 # StudyHub
 
-StudyHub helps students and exam candidates find each other, form study groups and plan shared study sessions. A university course, a civil service exam, a certification or a language exam: you find the people preparing the same thing, take a place in their group, and everyone sees the group's timetable. When you plan a session, StudyHub can suggest an agenda with Gemini, and an AI agent can use the same rules through MCP.
+StudyHub helps students and exam candidates find each other, form study groups, talk in a group chat and plan shared study sessions. A university course, a civil service exam, a certification or a language exam: you find the people preparing the same thing, take a place in their group, and everyone sees the group's timetable. When you plan a session, StudyHub can suggest an agenda with Gemini, and an AI agent can use the same rules through MCP.
 
 The specification, with every acceptance criterion and where it is tested, is in [SPEC.md](SPEC.md).
 
@@ -19,6 +19,8 @@ npm start
 | `ana@studyhub.test` | `StudyHub2026!` | Created two groups and is a member of two more, with sessions this week |
 | `boris@studyhub.test` | `StudyHub2026!` | Creator of three groups, including the full "SQL and normalisation clinic" |
 | `carmen@studyhub.test` | `StudyHub2026!` | In no group yet: the empty states, and the "Full" button on the SQL clinic |
+
+To try "Forgot your password?" without an email provider, ask for a link on the sign-in page: in development the email, with its link, is printed in the terminal where `npm start` runs. With `BREVO_API_KEY` and `MAIL_FROM` set it is sent for real.
 
 ## With a real database
 
@@ -46,7 +48,7 @@ The server also applies pending migrations when it starts, and creates the demo 
 
 ## Configuration
 
-Every variable is listed, with where its value comes from, in [.env.example](.env.example). Only `DATABASE_URL` and `SESSION_SECRET` are required: the app stops at start with `missing <NAME>: see .env.example` when one is missing. Without the Google keys the Google button is hidden; without `GEMINI_API_KEY` the agenda suggestion offers a standard template.
+Every variable is listed, with where its value comes from, in [.env.example](.env.example). Only `DATABASE_URL` and `SESSION_SECRET` are required: the app stops at start with `missing <NAME>: see .env.example` when one is missing. Without the Google keys the Google button is hidden; without `GEMINI_API_KEY` the agenda suggestion offers a standard template; without `BREVO_API_KEY` and `MAIL_FROM` password reset emails are printed in the log during development and not sent in production.
 
 ## How the code is organised
 
@@ -56,9 +58,10 @@ src/
   app.js             Express app: security headers, /health, static files, /api
   config.js          reads and checks the environment
   routes/            HTTP only: read the request, call a service, send the result
-  services/          every rule: auth, groups, study sessions, agenda; no HTTP, no SQL
+  services/          every rule: auth, groups, study sessions, chat, agenda; no HTTP, no SQL
   data/              every SQL query
-  integrations/      the two outside services: Gemini and Google OAuth
+  integrations/      the outside services: Gemini, Google OAuth and Brevo (email)
+  emails.js          the text of the password reset email
   http/              cookies, middleware, the sign-in rate limit
 migrations/          numbered SQL files
 mcp-server/          the MCP server (stdio), using the same services

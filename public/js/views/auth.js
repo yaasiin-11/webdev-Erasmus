@@ -75,6 +75,7 @@ export function loginView(main, { state, query, setUser, go }) {
         minlength: signIn ? null : 8,
       }),
       submit,
+      signIn ? h('a', { class: 'forgot-link', href: '#/forgot' }, 'Forgot your password?') : null,
     );
   }
 
@@ -138,4 +139,112 @@ export function loginView(main, { state, query, setUser, go }) {
       ),
     ),
   ));
+}
+
+function authShell(main, ...content) {
+  render(main, h('div', { class: 'auth' },
+    story(),
+    h('section', { class: 'auth-panel', 'aria-label': 'Account recovery' },
+      h('div', { class: 'auth-card' }, ...content)),
+  ));
+}
+
+export function forgotView(main) {
+  const errorBox = h('p', { class: 'alert', role: 'alert', tabindex: '-1', hidden: true });
+  const submit = h('button', { type: 'submit', class: 'btn btn-primary' }, 'Send me a link');
+  const form = h('form', { class: 'form-grid', novalidate: true },
+    field({ id: 'fg-email', label: 'Email of your account', type: 'email', autocomplete: 'email' }),
+    submit,
+  );
+  form.elements[0].name = 'email';
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    errorBox.hidden = true;
+    const email = form.elements.email.value.trim();
+    if (!email) {
+      errorBox.textContent = 'Enter the email you signed up with.';
+      errorBox.hidden = false;
+      errorBox.focus();
+      return;
+    }
+    const done = busy(submit, 'Sending…');
+    try {
+      const { message } = await api('/auth/forgot', { method: 'POST', body: { email } });
+      authShell(main,
+        h('h2', { text: 'Check your inbox' }),
+        h('p', { role: 'status', text: message }),
+        h('p', { class: 'demo-note', text: 'Nothing after a few minutes? Look in the spam folder, or ask for a new link.' }),
+        h('div', { class: 'form-actions' },
+          h('a', { class: 'btn', href: '#/login' }, 'Back to sign in'),
+          h('button', { type: 'button', class: 'btn btn-quiet', on: { click: () => forgotView(main) } }, 'Send another link'),
+        ),
+      );
+    } catch (error) {
+      done();
+      errorBox.textContent = error.message;
+      errorBox.hidden = false;
+      errorBox.focus();
+    }
+  });
+
+  authShell(main,
+    h('h2', { text: 'Forgot your password?' }),
+    h('p', { text: 'Enter the email of your account and we will send you a link to choose a new password. The link works once, for 30 minutes.' }),
+    errorBox,
+    form,
+    h('a', { class: 'forgot-link', href: '#/login' }, 'Back to sign in'),
+  );
+}
+
+export function resetView(main, { query, setUser, go }) {
+  const token = query.get('token');
+  if (!token) {
+    authShell(main,
+      h('h2', { text: 'This link is incomplete' }),
+      h('p', { text: 'Open the link from the email again, or ask for a new one.' }),
+      h('a', { class: 'btn btn-primary', href: '#/forgot' }, 'Ask for a new link'),
+    );
+    return;
+  }
+  const errorBox = h('p', { class: 'alert', role: 'alert', tabindex: '-1', hidden: true });
+  const submit = h('button', { type: 'submit', class: 'btn btn-primary' }, 'Save new password');
+  const form = h('form', { class: 'form-grid', novalidate: true },
+    field({ id: 'rs-password', label: 'New password', type: 'password', autocomplete: 'new-password', hint: 'At least 8 characters.', minlength: 8 }),
+    field({ id: 'rs-confirm', label: 'Repeat the new password', type: 'password', autocomplete: 'new-password', minlength: 8 }),
+    submit,
+  );
+
+  const fail = (message) => {
+    errorBox.textContent = message;
+    errorBox.hidden = false;
+    errorBox.focus();
+  };
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    errorBox.hidden = true;
+    const password = form.elements[0].value;
+    if (password.length < 8) return fail('Password must be between 8 and 128 characters.');
+    if (password !== form.elements[1].value) return fail('The two passwords are different. Type the same one twice.');
+    const done = busy(submit, 'Saving…');
+    try {
+      const { user } = await api('/auth/reset', { method: 'POST', body: { token, password } });
+      history.replaceState(null, '', '#/groups');
+      setUser(user);
+      toast('Password changed. You are signed in, and other devices were signed out.');
+      go('/groups');
+    } catch (error) {
+      done();
+      fail(error.message);
+    }
+    return undefined;
+  });
+
+  authShell(main,
+    h('h2', { text: 'Choose a new password' }),
+    errorBox,
+    form,
+    h('a', { class: 'forgot-link', href: '#/forgot' }, 'Ask for a new link'),
+  );
 }

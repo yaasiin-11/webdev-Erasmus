@@ -1,6 +1,6 @@
 import { api } from './api.js';
 import { initials, render, toast } from './dom.js';
-import { loginView } from './views/auth.js';
+import { forgotView, loginView, resetView } from './views/auth.js';
 import { groupsView } from './views/groups.js';
 import { groupView } from './views/group.js';
 import { sessionsView } from './views/sessions.js';
@@ -12,6 +12,8 @@ const topbar = document.querySelector('.topbar');
 
 const routes = [
   [/^\/login$/, () => loginView, false],
+  [/^\/forgot$/, () => forgotView, false],
+  [/^\/reset$/, () => resetView, false],
   [/^\/groups$/, () => groupsView, true],
   [/^\/groups\/(\d+)$/, () => groupView, true],
   [/^\/sessions$/, () => sessionsView, true],
@@ -53,7 +55,7 @@ async function route() {
   if (!match) return go('/groups');
   const [pattern, view, needsUser] = match;
   if (needsUser && !state.user) return go('/login');
-  if (!needsUser && state.user && path === '/login') return go('/groups');
+  if (!needsUser && state.user && path !== '/reset') return go('/groups');
 
   const token = ++current;
   markNav(path);

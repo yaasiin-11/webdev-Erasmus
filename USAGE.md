@@ -9,5 +9,6 @@ One row per agent session. In Gemini CLI, type `/stats` before you quit and copy
 | 2026-10-19 | Gemini CLI | 41 439 | 428 | | $0.03 |
 | 2026-10-20 | Gemini CLI | 46 500 | 6 800 | | $0.22 |
 | 2026-11-16 | Claude (Opus 5.5) coding agent | ~16 000 000 (about 15 700 000 of them cache reads) | ~100 000 | | ~$6.60 (estimate) |
+| 2026-11-17 | Claude (Opus 5.5) coding agent | ~9 000 000 (about 8 800 000 of them cache reads) | ~45 000 | | ~$3.70 (estimate) |
 
-Price lists used: Gemini rows at Google's Gemini API list price on the session date. The 2026-11-16 row at Anthropic's list price for Claude Opus 5.5 checked on 2026-11-16: $4 per million input tokens, $0.20 per million cache-read tokens, $5 per million cache-write tokens, $20 per million output tokens. That session showed no token counter, so its numbers are an estimate from the number of agent turns (about 120) and the context size per turn.
+Price lists used: Gemini rows at Google's Gemini API list price on the session date. The Claude rows at Anthropic's list price for Claude Opus 5.5 checked on 2026-11-16: $4 per million input tokens, $0.20 per million cache-read tokens, $5 per million cache-write tokens, $20 per million output tokens. Those sessions showed no token counter, so their numbers are estimates from the number of agent turns and the context size per turn.

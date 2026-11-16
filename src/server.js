@@ -40,7 +40,7 @@ const server = app.listen(config.port, () => {
   log.info(`public address ${config.baseUrl}`);
   log.info(`database: ${config.databaseUrl === 'memory' ? 'in memory (data is lost on restart)' : 'postgres'}`);
   log.info(`google sign-in: ${google ? 'on' : 'off'} · agenda model: ${config.model ? config.model.name : 'off (template fallback)'}`);
-  log.info(`password reset emails: ${config.mail ? `sent by Brevo from ${config.mail.from}` : 'printed in this log (no mail provider)'}`);
+  log.info(`password reset emails: ${config.mail ? `sent by Brevo from ${config.mail.from}` : config.production ? 'off, set BREVO_API_KEY and MAIL_FROM' : 'printed in this log (no mail provider)'}`);
 });
 
 setInterval(() => repos.authSessions.deleteExpired(new Date()).catch(() => {}), 60 * 60 * 1000).unref();

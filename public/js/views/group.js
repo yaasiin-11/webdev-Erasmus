@@ -1,6 +1,7 @@
 import { api } from '../api.js';
 import { busy, categoryLabel, fmt, h, initials, isLink, openDialog, render, seatText, seats, toast } from '../dom.js';
 import { membershipButton } from './groups.js';
+import { chatPanel } from './chat.js';
 
 const DURATIONS = [30, 45, 60, 90, 120, 180, 240];
 
@@ -289,6 +290,7 @@ export async function groupView(main, ctx) {
         group.isMember ? planner(group, reload) : null,
       ),
       h('aside', {},
+        chatPanel(group),
         h('section', { class: 'aside-block', 'aria-labelledby': 'about-title' },
           h('h2', { id: 'about-title', text: 'About' }),
           h('p', { text: group.description || 'The creator has not described this group yet.' }),

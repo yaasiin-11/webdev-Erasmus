@@ -17,6 +17,11 @@ const GROUPS = [
     category: 'university',
     maxCapacity: 6,
     description: 'We work through the problem sheets together every week and swap notes before the January finals.',
+    messages: [
+      ['ana', 'Hi both! I uploaded my notes on polar coordinates to our shared folder.'],
+      ['boris', 'Thanks Ana. Can we spend ten minutes on exercise 7 before the past exam?'],
+      ['ana', 'Sure, I added it to the agenda of Tuesday\u2019s session.'],
+    ],
     sessions: [
       { by: 'ana', topic: 'Double integrals and Fubini', day: 1, hour: 17, minutes: 90, location: 'Library, room 2.14', withAgenda: true },
       { by: 'boris', topic: 'Past exam 2025, part A', day: 4, hour: 16, minutes: 120, location: 'https://meet.example.org/calc-finals' },
@@ -76,6 +81,9 @@ export async function seedDemo({ services, repos, now = new Date() }) {
   for (const group of GROUPS) {
     const created = await services.groups.createGroup(users[group.owner].id, group);
     for (const member of group.members) await services.groups.joinGroup(users[member].id, created.id);
+    for (const [author, body] of group.messages ?? []) {
+      await services.chat.postMessage(users[author].id, created.id, { body });
+    }
     for (const session of group.sessions) {
       const startsAt = new Date(tomorrow.getTime() + ((session.day - 1) * 24 + session.hour) * 3600 * 1000);
       await services.studySessions.scheduleSession(users[session.by].id, created.id, {
