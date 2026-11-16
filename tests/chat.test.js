@@ -108,3 +108,88 @@ describe('group chat', () => {
     assert.equal(sent.json.message.body, '<img src=x onerror=alert(1)>');
   });
 });
+
+describe('reactions and unread messages', () => {
+  let world;
+  let api;
+  let group;
+  let ana;
+  let boris;
+  before(async () => {
+    world = await makeWorld();
+    group = await world.group('ana', { title: 'Reactions group' });
+    await world.services.groups.joinGroup(world.users.boris.id, group.id);
+    api = await startServer(world);
+    ana = await api.login('ana@test.dev');
+    boris = await api.login('boris@test.dev');
+  });
+  after(() => api.close());
+
+  const react = (cookie, messageId, emoji) => api.request(`/api/messages/${messageId}/reactions`, { method: 'POST', cookie, body: { emoji } });
+
+  test('AC-43 a member reacts with an emoji, everyone sees the count and who reacted, and a second click takes it back', async () => {
+    const message = (await api.request(`/api/groups/${group.id}/messages`, { method: 'POST', cookie: ana, body: { body: 'Exam moved to Friday!' } })).json.message;
+    assert.deepEqual(message.reactions, []);
+
+    const first = await react(boris, message.id, '🎉');
+    assert.equal(first.status, 200);
+    assert.deepEqual(first.json.message.reactions, [{ emoji: '🎉', count: 1, mine: true, names: ['Boris Ivanov'] }]);
+    world.advance(0.01);
+    await react(ana, message.id, '🎉');
+    await react(ana, message.id, '👍');
+
+    const seen = (await api.request(`/api/groups/${group.id}/messages`, { cookie: ana })).json.messages[0];
+    assert.deepEqual(seen.reactions, [
+      { emoji: '👍', count: 1, mine: true, names: ['Ana Petrova'] },
+      { emoji: '🎉', count: 2, mine: true, names: ['Boris Ivanov', 'Ana Petrova'] },
+    ]);
+
+    const undone = await react(boris, message.id, '🎉');
+    assert.deepEqual(undone.json.message.reactions.find((r) => r.emoji === '🎉'), { emoji: '🎉', count: 1, mine: false, names: ['Ana Petrova'] });
+  });
+
+  test('AC-43 only the offered emoji are accepted, and only members of the group can react', async () => {
+    const message = (await api.request(`/api/groups/${group.id}/messages`, { method: 'POST', cookie: ana, body: { body: 'React to me' } })).json.message;
+    assert.equal((await react(ana, message.id, '💩')).status, 422);
+    const carmen = await api.login('carmen@test.dev');
+    assert.equal((await react(carmen, message.id, '👍')).status, 403);
+    assert.equal((await react(undefined, message.id, '👍')).status, 401);
+    assert.equal((await react(ana, 999999, '👍')).status, 404);
+  });
+
+  test('AC-44 the groups list shows how many messages a member has not read yet, and opening the chat clears it', async () => {
+    const unreadFor = async (cookie) => (await api.request('/api/groups', { cookie })).json.groups.find((g) => g.id === group.id).unreadCount;
+    await api.request(`/api/groups/${group.id}/messages`, { cookie: boris });
+    assert.equal(await unreadFor(boris), 0);
+
+    for (const body of ['one', 'two', 'three']) {
+      await api.request(`/api/groups/${group.id}/messages`, { method: 'POST', cookie: ana, body: { body } });
+    }
+    assert.equal(await unreadFor(boris), 3);
+    assert.equal(await unreadFor(ana), 0);
+
+    await api.request(`/api/groups/${group.id}/messages`, { cookie: boris });
+    assert.equal(await unreadFor(boris), 0);
+
+    const outsider = await api.login('carmen@test.dev');
+    assert.equal(await unreadFor(outsider), 0);
+  });
+
+  test('AC-44 reading older messages never moves the read marker backwards', async () => {
+    await world.services.chat.listMessages(world.users.boris.id, group.id, { after: 0 });
+    const before = await world.repos.messages.lastRead(group.id, world.users.boris.id);
+    await world.services.chat.listMessages(world.users.boris.id, group.id, { after: '1' });
+    assert.equal(await world.repos.messages.lastRead(group.id, world.users.boris.id), before);
+    assert.deepEqual(await world.services.chat.listMessages(world.users.boris.id, group.id, { after: before }), []);
+  });
+
+  test('AC-17 deleting a group removes its messages, reactions and read markers too', async () => {
+    const doomed = await world.group('ana', { title: 'Short-lived' });
+    const message = await world.services.chat.postMessage(world.users.ana.id, doomed.id, { body: 'bye' });
+    await world.services.chat.toggleReaction(world.users.ana.id, message.id, '👀');
+    await world.services.groups.deleteGroup(world.users.ana.id, doomed.id);
+    const { rows } = await world.pool.query('SELECT COUNT(*)::int AS n FROM message_reactions WHERE message_id = $1', [message.id]);
+    assert.equal(rows[0].n, 0);
+    assert.equal(await world.repos.messages.findById(message.id), null);
+  });
+});

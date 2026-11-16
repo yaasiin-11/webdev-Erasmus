@@ -48,7 +48,65 @@ export function messagesRepository(db) {
     },
 
     async delete(id) {
+      await db.query('DELETE FROM message_reactions WHERE message_id = $1', [id]);
       await db.query('DELETE FROM group_messages WHERE id = $1', [id]);
+    },
+
+    async reactionsBetween(groupId, fromId, toId) {
+      const { rows } = await db.query(
+        `SELECT r.message_id, r.user_id, r.emoji, u.name
+           FROM message_reactions r
+           JOIN group_messages m ON m.id = r.message_id
+           JOIN users u ON u.id = r.user_id
+          WHERE m.group_id = $1 AND r.message_id >= $2 AND r.message_id <= $3
+          ORDER BY r.created_at, r.user_id`,
+        [groupId, fromId, toId],
+      );
+      return rows;
+    },
+
+    async hasReaction(messageId, userId, emoji) {
+      const { rows } = await db.query(
+        'SELECT 1 FROM message_reactions WHERE message_id = $1 AND user_id = $2 AND emoji = $3',
+        [messageId, userId, emoji],
+      );
+      return rows.length > 0;
+    },
+
+    async addReaction(messageId, userId, emoji, createdAt) {
+      await db.query(
+        'INSERT INTO message_reactions (message_id, user_id, emoji, created_at) VALUES ($1, $2, $3, $4)',
+        [messageId, userId, emoji, createdAt],
+      );
+    },
+
+    async removeReaction(messageId, userId, emoji) {
+      await db.query(
+        'DELETE FROM message_reactions WHERE message_id = $1 AND user_id = $2 AND emoji = $3',
+        [messageId, userId, emoji],
+      );
+    },
+
+    async lastRead(groupId, userId) {
+      const { rows } = await db.query(
+        'SELECT last_read_message_id FROM chat_reads WHERE group_id = $1 AND user_id = $2',
+        [groupId, userId],
+      );
+      return rows[0]?.last_read_message_id ?? null;
+    },
+
+    async insertRead(groupId, userId, messageId) {
+      await db.query(
+        'INSERT INTO chat_reads (group_id, user_id, last_read_message_id) VALUES ($1, $2, $3)',
+        [groupId, userId, messageId],
+      );
+    },
+
+    async updateRead(groupId, userId, messageId) {
+      await db.query(
+        'UPDATE chat_reads SET last_read_message_id = $3 WHERE group_id = $1 AND user_id = $2',
+        [groupId, userId, messageId],
+      );
     },
   };
 }

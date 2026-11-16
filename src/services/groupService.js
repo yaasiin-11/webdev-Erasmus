@@ -18,6 +18,7 @@ export function toGroupDto(row, viewerId) {
     isOwner: row.creator_id === viewerId,
     creator: { id: row.creator_id, name: row.creator_name },
     nextSessionAt: row.next_session_at ? new Date(row.next_session_at).toISOString() : null,
+    unreadCount: row.unread_count,
     createdAt: new Date(row.created_at).toISOString(),
   };
 }
@@ -42,14 +43,15 @@ export function createGroupService({ repos, now }) {
 
   async function getGroup(viewerId, groupId) {
     const row = await requireGroup(viewerId, groupId);
-    const [members, sessions] = await Promise.all([
+    const [members, sessions, rsvps] = await Promise.all([
       repos.groups.members(row.id),
       repos.studySessions.listByGroup(row.id),
+      repos.studySessions.rsvpsForGroup(row.id),
     ]);
     return {
       ...toGroupDto(row, viewerId),
       members: members.map((m) => ({ id: m.id, name: m.name, joinedAt: new Date(m.joined_at).toISOString() })),
-      sessions: upcoming(sessions, now()).map((s) => toSessionDto(s, viewerId)),
+      sessions: upcoming(sessions, now()).map((s) => toSessionDto(s, viewerId, rsvps)),
     };
   }
 

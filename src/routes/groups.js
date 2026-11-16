@@ -55,6 +55,10 @@ export function messageRoutes({ chat }) {
     res.status(204).end();
   }));
 
+  router.post('/:id/reactions', asyncRoute(async (req, res) => {
+    res.json({ message: await chat.toggleReaction(req.user.id, req.params.id, req.body?.emoji) });
+  }));
+
   return router;
 }
 
@@ -73,6 +77,14 @@ export function sessionRoutes({ studySessions }) {
   router.delete('/:id', asyncRoute(async (req, res) => {
     await studySessions.cancelSession(req.user.id, req.params.id);
     res.status(204).end();
+  }));
+
+  router.put('/:id/rsvp', asyncRoute(async (req, res) => {
+    res.json({ session: await studySessions.setRsvp(req.user.id, req.params.id, req.body?.status ?? '') });
+  }));
+
+  router.delete('/:id/rsvp', asyncRoute(async (req, res) => {
+    res.json({ session: await studySessions.setRsvp(req.user.id, req.params.id, null) });
   }));
 
   return router;
