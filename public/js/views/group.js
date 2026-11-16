@@ -32,7 +32,45 @@ function agendaBlock(session) {
   );
 }
 
-export function sessionSlot(session, { showGroup = false, onChanged } = {}) {
+function rsvpRow(session, canAnswer, onAnswered) {
+  const { attendance } = session;
+  const names = attendance.goingNames;
+  const who = names.length
+    ? `${names.slice(0, 3).join(', ')}${names.length > 3 ? ` and ${names.length - 3} more` : ''}`
+    : 'nobody yet';
+  const count = h('p', { class: 'rsvp-count', text: `${attendance.going} going: ${who}${attendance.notGoing ? `. ${attendance.notGoing} can't make it` : ''}.` });
+  if (!canAnswer) return h('div', { class: 'rsvp' }, count);
+
+  const choice = (status, label) => h('button', {
+    type: 'button',
+    'aria-pressed': String(attendance.mine === status),
+    on: {
+      async click(event) {
+        const button = event.currentTarget;
+        button.disabled = true;
+        const clearing = attendance.mine === status;
+        try {
+          const { session: updated } = await api(`/sessions/${session.id}/rsvp`, clearing
+            ? { method: 'DELETE' }
+            : { method: 'PUT', body: { status } });
+          toast(clearing ? 'Answer removed.' : status === 'going' ? `See you at ${session.topic}.` : 'Thanks for letting the group know.');
+          onAnswered(updated, status);
+        } catch (error) {
+          button.disabled = false;
+          toast(error.message, { error: true });
+        }
+      },
+    },
+  }, label);
+
+  return h('div', { class: 'rsvp' },
+    h('div', { class: 'rsvp-choice', role: 'group', 'aria-label': `Will you come to ${session.topic}?` },
+      choice('going', 'Going'), choice('not_going', "Can't go")),
+    count,
+  );
+}
+
+export function sessionSlot(session, { showGroup = false, onChanged, canAnswer = true } = {}) {
   const place = session.location
     ? (isLink(session.location)
         ? h('a', { href: session.location, rel: 'noopener noreferrer', target: '_blank', text: session.location })
@@ -46,7 +84,13 @@ export function sessionSlot(session, { showGroup = false, onChanged } = {}) {
       )
     : null;
 
-  return h('li', {},
+  const li = h('li');
+  const replaceWith = (updated, status) => {
+    const fresh = sessionSlot({ ...session, ...updated }, { showGroup, onChanged, canAnswer });
+    li.replaceWith(fresh);
+    fresh.querySelector(`.rsvp-choice button:nth-child(${status === 'not_going' ? 2 : 1})`)?.focus();
+  };
+  render(li,
     h('article', { class: 'slot', 'aria-labelledby': `s-${session.id}` },
       h('div', { class: 'slot-date', 'aria-hidden': 'true' },
         h('span', { class: 'dow', text: fmt.dow(session.startsAt) }),
@@ -65,10 +109,12 @@ export function sessionSlot(session, { showGroup = false, onChanged } = {}) {
           h('span', { text: `planned by ${session.canEdit ? 'you' : session.createdBy.name}` }),
         ),
         agendaBlock(session),
+        rsvpRow(session, canAnswer, replaceWith),
         actions,
       ),
     ),
   );
+  return li;
 }
 
 function moveDialog(session, onChanged) {
@@ -217,6 +263,22 @@ function planner(group, reload) {
   );
 }
 
+async function copyInvite(group) {
+  const link = `${location.origin}/#/groups/${group.id}`;
+  try {
+    await navigator.clipboard.writeText(link);
+    toast(`Invite link copied. Anyone signed in can open ${group.title} with it.`);
+  } catch {
+    openDialog({
+      title: 'Invite link',
+      body: 'Copy this address and send it to the people you want in the group.',
+      confirmLabel: 'Done',
+      form: h('input', { readonly: true, value: link, 'aria-label': 'Invite link', on: { focus: (e) => e.target.select() } }),
+      async onConfirm() {},
+    });
+  }
+}
+
 function deleteGroup(group, go) {
   openDialog({
     title: `Delete ${group.title}?`,
@@ -263,7 +325,7 @@ export async function groupView(main, ctx) {
   const reload = () => groupView(main, ctx);
 
   const sessions = group.sessions.length
-    ? h('ol', { class: 'timetable' }, group.sessions.map((s) => sessionSlot(s, { onChanged: reload })))
+    ? h('ol', { class: 'timetable' }, group.sessions.map((s) => sessionSlot(s, { onChanged: reload, canAnswer: group.isMember })))
     : h('div', { class: 'state' },
         h('h3', { text: 'Nothing planned yet' }),
         h('p', { text: group.isMember ? 'Pick a time below and the whole group will see it here.' : 'Join the group to plan the first session.' }),
@@ -281,6 +343,7 @@ export async function groupView(main, ctx) {
         group.isOwner
           ? h('button', { type: 'button', class: 'btn btn-danger', on: { click: () => deleteGroup(group, ctx.go) } }, 'Delete group')
           : membershipButton(group, reload),
+        h('button', { type: 'button', class: 'btn', on: { click: () => copyInvite(group) } }, 'Copy invite link'),
       ),
     ),
     h('div', { class: 'split' },

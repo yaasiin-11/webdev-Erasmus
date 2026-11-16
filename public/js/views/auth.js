@@ -105,7 +105,9 @@ export function loginView(main, { state, query, setUser, go }) {
       const { user } = await api(mode === 'in' ? '/auth/login' : '/auth/register', { method: 'POST', body: data });
       setUser(user);
       toast(mode === 'in' ? `Welcome back, ${user.name.split(' ')[0]}.` : `Your account is ready, ${user.name.split(' ')[0]}.`);
-      go('/groups');
+      const next = state.next ?? '/groups';
+      state.next = null;
+      go(next);
     } catch (error) {
       done();
       showError(error.message);

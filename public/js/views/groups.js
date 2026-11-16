@@ -51,6 +51,9 @@ function groupRow(group) {
           h('span', { text: g.subject }),
           h('span', { text: `by ${g.isOwner ? 'you' : g.creator.name}` }),
         ),
+        g.unreadCount > 0
+          ? h('a', { class: 'unread', href: `#/groups/${g.id}` }, `${g.unreadCount} new message${g.unreadCount === 1 ? '' : 's'} in the chat`)
+          : null,
         g.description ? h('p', { class: 'group-desc', text: g.description }) : null,
       ),
       h('div', { class: 'group-seats' },

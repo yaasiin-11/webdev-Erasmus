@@ -6,7 +6,7 @@ import { groupView } from './views/group.js';
 import { sessionsView } from './views/sessions.js';
 import { profileView } from './views/profile.js';
 
-const state = { user: null, providers: { google: false, demo: false } };
+const state = { user: null, next: null, providers: { google: false, demo: false } };
 const main = document.getElementById('main');
 const topbar = document.querySelector('.topbar');
 
@@ -54,7 +54,10 @@ async function route() {
   const match = routes.find(([pattern]) => pattern.test(path));
   if (!match) return go('/groups');
   const [pattern, view, needsUser] = match;
-  if (needsUser && !state.user) return go('/login');
+  if (needsUser && !state.user) {
+    state.next = path === '/groups' ? null : path;
+    return go('/login');
+  }
   if (!needsUser && state.user && path !== '/reset') return go('/groups');
 
   const token = ++current;
