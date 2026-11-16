@@ -1,7 +1,7 @@
 import express from 'express';
 import { asyncRoute, requireUser } from '../http/middleware.js';
 
-export function groupRoutes({ groups, studySessions }) {
+export function groupRoutes({ groups, studySessions, chat }) {
   const router = express.Router();
   router.use(requireUser);
 
@@ -33,6 +33,26 @@ export function groupRoutes({ groups, studySessions }) {
 
   router.post('/:id/sessions', asyncRoute(async (req, res) => {
     res.status(201).json({ session: await studySessions.scheduleSession(req.user.id, req.params.id, req.body ?? {}) });
+  }));
+
+  router.get('/:id/messages', asyncRoute(async (req, res) => {
+    res.json({ messages: await chat.listMessages(req.user.id, req.params.id, { after: req.query.after }) });
+  }));
+
+  router.post('/:id/messages', asyncRoute(async (req, res) => {
+    res.status(201).json({ message: await chat.postMessage(req.user.id, req.params.id, req.body ?? {}) });
+  }));
+
+  return router;
+}
+
+export function messageRoutes({ chat }) {
+  const router = express.Router();
+  router.use(requireUser);
+
+  router.delete('/:id', asyncRoute(async (req, res) => {
+    await chat.deleteMessage(req.user.id, req.params.id);
+    res.status(204).end();
   }));
 
   return router;

@@ -4,8 +4,14 @@ export const MEMORY_URL = 'memory';
 
 export async function createPool(databaseUrl) {
   if (databaseUrl === MEMORY_URL) {
-    const { newDb } = await import('pg-mem');
+    const { newDb, DataType } = await import('pg-mem');
     const memory = newDb();
+    memory.public.registerFunction({
+      name: 'char_length',
+      args: [DataType.text],
+      returns: DataType.integer,
+      implementation: (value) => [...value].length,
+    });
     const { Pool } = memory.adapters.createPg();
     return new Pool();
   }
