@@ -3,6 +3,7 @@ import { hashPassword, randomToken, sha256, verifyPassword } from './passwords.j
 import { text } from './validate.js';
 
 const SESSION_DAYS = 7;
+const RESET_MINUTES = 30;
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const MCP_TOKEN_PREFIX = 'shmcp_';
 
@@ -16,13 +17,17 @@ function normalizeEmail(value) {
   return email;
 }
 
+function checkPassword(password) {
+  if (typeof password !== 'string' || password.length < 8 || password.length > 128) {
+    throw new ValidationError('Password must be between 8 and 128 characters.', 'WeakPassword');
+  }
+}
+
 export function createAuthService({ repos, now }) {
   async function register({ name, email, password }) {
     const cleanName = text(name, { field: 'Name', min: 2, max: 60 });
     const cleanEmail = normalizeEmail(email);
-    if (typeof password !== 'string' || password.length < 8 || password.length > 128) {
-      throw new ValidationError('Password must be between 8 and 128 characters.', 'WeakPassword');
-    }
+    checkPassword(password);
     if (await repos.users.findByEmail(cleanEmail)) {
       throw new ConflictError('An account with this email already exists. Sign in instead.', 'EmailTaken');
     }
@@ -63,6 +68,31 @@ export function createAuthService({ repos, now }) {
       googleSub: sub,
     });
     return publicUser(created);
+  }
+
+  async function requestPasswordReset(email) {
+    const user = await repos.users.findByEmail(normalizeEmail(email));
+    if (!user) return null;
+    const token = randomToken();
+    const expiresAt = new Date(now().getTime() + RESET_MINUTES * 60 * 1000);
+    await repos.passwordResets.replace({ userId: user.id, tokenHash: sha256(token), expiresAt });
+    return { user: publicUser(user), token, expiresAt };
+  }
+
+  async function resetPassword({ token, password }) {
+    checkPassword(password);
+    const hash = sha256(String(token ?? ''));
+    const reset = await repos.passwordResets.findUsable(hash, now());
+    if (!reset) {
+      throw new ValidationError('This reset link is invalid or has expired. Ask for a new one.', 'ResetLinkInvalid');
+    }
+    const passwordHash = await hashPassword(password);
+    await repos.transaction(async (tx) => {
+      await tx.users.setPassword(reset.user_id, passwordHash);
+      await tx.passwordResets.markUsed(hash, now());
+      await tx.authSessions.deleteForUser(reset.user_id);
+    });
+    return publicUser(await repos.users.findById(reset.user_id));
   }
 
   async function startSession(userId) {
@@ -113,6 +143,8 @@ export function createAuthService({ repos, now }) {
     register,
     authenticate,
     signInWithGoogle,
+    requestPasswordReset,
+    resetPassword,
     startSession,
     userForSession,
     endSession,

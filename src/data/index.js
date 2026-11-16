@@ -1,7 +1,8 @@
 import { usersRepository } from './users.js';
 import { groupsRepository } from './groups.js';
 import { studySessionsRepository } from './sessions.js';
-import { authSessionsRepository, mcpTokensRepository } from './tokens.js';
+import { authSessionsRepository, mcpTokensRepository, passwordResetsRepository } from './tokens.js';
+import { messagesRepository } from './messages.js';
 import { withTransaction } from '../db/pool.js';
 
 function bind(db) {
@@ -11,6 +12,8 @@ function bind(db) {
     studySessions: studySessionsRepository(db),
     authSessions: authSessionsRepository(db),
     mcpTokens: mcpTokensRepository(db),
+    messages: messagesRepository(db),
+    passwordResets: passwordResetsRepository(db),
   };
 }
 

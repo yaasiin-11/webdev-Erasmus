@@ -4,10 +4,11 @@ import { AuthenticationError, RateLimitError } from '../services/errors.js';
 import { asyncRoute, requireUser } from '../http/middleware.js';
 import { OAUTH_COOKIE, SESSION_COOKIE, cookieOptions, parseCookies, sign, unsign } from '../http/cookies.js';
 import { createPkcePair } from '../integrations/google.js';
+import { passwordResetEmail } from '../emails.js';
 
 const OAUTH_MAX_AGE = 10 * 60 * 1000;
 
-export function authRoutes({ auth, config, google, limiter, log }) {
+export function authRoutes({ auth, config, google, limiter, mailer, log }) {
   const router = express.Router();
 
   async function startSession(res, user) {
@@ -35,6 +36,32 @@ export function authRoutes({ auth, config, google, limiter, log }) {
       throw error;
     }
     limiter.reset(key);
+    await startSession(res, user);
+    res.json({ user });
+  }));
+
+  router.post('/forgot', asyncRoute(async (req, res) => {
+    const email = String(req.body?.email ?? '').trim().toLowerCase();
+    const key = `forgot|${req.ip}|${email}`;
+    if (limiter.isBlocked(key)) {
+      throw new RateLimitError('Too many reset requests. Wait 15 minutes and try again.', 'TooManyAttempts');
+    }
+    limiter.fail(key);
+    const reset = await auth.requestPasswordReset(email);
+    if (reset) {
+      const link = `${config.baseUrl}/#/reset?token=${encodeURIComponent(reset.token)}`;
+      const message = passwordResetEmail({ name: reset.user.name, link, minutes: 30 });
+      mailer
+        .send({ to: reset.user.email, toName: reset.user.name, ...message })
+        .catch((error) => log.error(`password reset email failed: ${error.message}`));
+    }
+    res.status(202).json({
+      message: 'If an account exists for that email, a link to choose a new password is on its way. It works for 30 minutes.',
+    });
+  }));
+
+  router.post('/reset', asyncRoute(async (req, res) => {
+    const user = await auth.resetPassword(req.body ?? {});
     await startSession(res, user);
     res.json({ user });
   }));

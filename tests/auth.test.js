@@ -4,6 +4,8 @@ import { makeWorld, startServer, PASSWORD } from './helpers.js';
 import { AuthenticationError, ConflictError, ValidationError } from '../src/services/errors.js';
 import { createAttemptLimiter } from '../src/http/rateLimit.js';
 import { createGoogleOAuth, createPkcePair } from '../src/integrations/google.js';
+import { createBrevoMailer, createConsoleMailer } from '../src/integrations/mailer.js';
+import { passwordResetEmail } from '../src/emails.js';
 
 describe('local sign-in', () => {
   let world;
@@ -337,5 +339,141 @@ describe('session lookup failures', () => {
     } finally {
       await api.close();
     }
+  });
+});
+
+describe('forgotten password', () => {
+  function fakeMailer() {
+    const sent = [];
+    return { sent, async send(message) { sent.push(message); } };
+  }
+
+  test('AC-41 asking for a reset sends a single-use link to the account email, and the answer never says whether the account exists', async () => {
+    const world = await makeWorld();
+    const mailer = fakeMailer();
+    const api = await startServer(world, { mailer, env: { PUBLIC_BASE_URL: 'https://studyhub.example' } });
+    try {
+      const known = await api.request('/api/auth/forgot', { method: 'POST', body: { email: 'Ana@Test.dev ' } });
+      const unknown = await api.request('/api/auth/forgot', { method: 'POST', body: { email: 'nobody@test.dev' } });
+      assert.equal(known.status, 202);
+      assert.equal(unknown.status, 202);
+      assert.deepEqual(known.json, unknown.json);
+      await new Promise((resolve) => setImmediate(resolve));
+
+      assert.equal(mailer.sent.length, 1);
+      assert.equal(mailer.sent[0].to, 'ana@test.dev');
+      assert.equal(mailer.sent[0].subject, 'Reset your StudyHub password');
+      const link = mailer.sent[0].text.match(/https:\/\/studyhub\.example\/#\/reset\?token=(\S+)/);
+      assert.ok(link);
+      assert.match(mailer.sent[0].html, /href="https:\/\/studyhub\.example\/#\/reset\?token=/);
+
+      const { rows } = await world.pool.query('SELECT token_hash FROM password_resets');
+      assert.equal(rows.length, 1);
+      assert.notEqual(rows[0].token_hash, decodeURIComponent(link[1]));
+      assert.equal((await api.request('/api/auth/forgot', { method: 'POST', body: { email: 'not-an-email' } })).status, 422);
+    } finally {
+      await api.close();
+    }
+  });
+
+  test('AC-42 the link sets a new password, signs the user in, signs out every other session and cannot be used twice', async () => {
+    const world = await makeWorld();
+    const mailer = fakeMailer();
+    const api = await startServer(world, { mailer });
+    try {
+      const oldSession = await api.login('boris@test.dev');
+      await api.request('/api/auth/forgot', { method: 'POST', body: { email: 'boris@test.dev' } });
+      await new Promise((resolve) => setImmediate(resolve));
+      const token = decodeURIComponent(mailer.sent[0].text.match(/token=(\S+)/)[1]);
+
+      const short = await api.request('/api/auth/reset', { method: 'POST', body: { token, password: 'short' } });
+      assert.equal(short.status, 422);
+
+      const reset = await api.request('/api/auth/reset', { method: 'POST', body: { token, password: 'a-brand-new-password' } });
+      assert.equal(reset.status, 200);
+      assert.equal(reset.json.user.email, 'boris@test.dev');
+      assert.match(reset.headers.get('set-cookie'), /^sid=/);
+
+      assert.equal((await api.request('/api/auth/me', { cookie: oldSession })).status, 401);
+      assert.equal((await api.request('/api/auth/login', { method: 'POST', body: { email: 'boris@test.dev', password: PASSWORD } })).status, 401);
+      assert.equal((await api.request('/api/auth/login', { method: 'POST', body: { email: 'boris@test.dev', password: 'a-brand-new-password' } })).status, 200);
+
+      const again = await api.request('/api/auth/reset', { method: 'POST', body: { token, password: 'yet-another-password' } });
+      assert.equal(again.status, 422);
+      assert.equal(again.json.error, 'This reset link is invalid or has expired. Ask for a new one.');
+      assert.equal((await api.request('/api/auth/reset', { method: 'POST', body: { password: 'long-enough-1' } })).status, 422);
+    } finally {
+      await api.close();
+    }
+  });
+
+  test('AC-42 a link expires after 30 minutes and a newer request replaces the older link', async () => {
+    const world = await makeWorld();
+    const first = await world.services.auth.requestPasswordReset('carmen@test.dev');
+    const second = await world.services.auth.requestPasswordReset('carmen@test.dev');
+    await assert.rejects(world.services.auth.resetPassword({ token: first.token, password: 'new-password-1' }), /invalid or has expired/);
+    world.advance(0.51);
+    await assert.rejects(world.services.auth.resetPassword({ token: second.token, password: 'new-password-1' }), ValidationError);
+    assert.equal(await world.services.auth.requestPasswordReset('ghost@test.dev'), null);
+  });
+
+  test('AC-41 more than 10 reset requests for one email from one address within 15 minutes get 429', async () => {
+    const world = await makeWorld();
+    const api = await startServer(world, { mailer: fakeMailer() });
+    try {
+      for (let i = 0; i < 10; i += 1) {
+        assert.equal((await api.request('/api/auth/forgot', { method: 'POST', body: { email: 'ana@test.dev' } })).status, 202);
+      }
+      assert.equal((await api.request('/api/auth/forgot', { method: 'POST', body: { email: 'ana@test.dev' } })).status, 429);
+    } finally {
+      await api.close();
+    }
+  });
+
+  test('AC-41 a failing mail provider is logged and the user still gets the same answer', async () => {
+    const world = await makeWorld();
+    const api = await startServer(world, { mailer: { async send() { throw new Error('provider down'); } } });
+    try {
+      const response = await api.request('/api/auth/forgot', { method: 'POST', body: { email: 'ana@test.dev' } });
+      assert.equal(response.status, 202);
+      await new Promise((resolve) => setImmediate(resolve));
+    } finally {
+      await api.close();
+    }
+  });
+});
+
+describe('mail delivery', () => {
+  test('AC-41 Brevo gets the sender, the recipient and both versions of the email, with the key in a header', async () => {
+    const calls = [];
+    const fetchImpl = async (url, init) => {
+      calls.push({ url, init });
+      return { ok: true };
+    };
+    const mailer = createBrevoMailer({ apiKey: 'brevo-key', from: 'studyhub@example.org', fetchImpl });
+    await mailer.send({ to: 'ana@test.dev', toName: 'Ana', subject: 'S', text: 'T', html: '<p>H</p>' });
+    assert.equal(calls[0].url, 'https://api.brevo.com/v3/smtp/email');
+    assert.equal(calls[0].init.headers['api-key'], 'brevo-key');
+    assert.deepEqual(JSON.parse(calls[0].init.body), {
+      sender: { email: 'studyhub@example.org', name: 'StudyHub' },
+      to: [{ email: 'ana@test.dev', name: 'Ana' }],
+      subject: 'S',
+      textContent: 'T',
+      htmlContent: '<p>H</p>',
+    });
+    const failing = createBrevoMailer({ apiKey: 'k', from: 'f@x.org', fetchImpl: async () => ({ ok: false, status: 401 }) });
+    await assert.rejects(failing.send({ to: 'a@b.c', subject: 's', text: 't', html: 'h' }), /status 401/);
+  });
+
+  test('AC-41 without a provider the email is printed in development and only mentioned in production', async () => {
+    const lines = [];
+    await createConsoleMailer((line) => lines.push(line), { showContent: true }).send({ to: 'a@b.c', subject: 'Reset', text: 'the link' });
+    await createConsoleMailer((line) => lines.push(line), { showContent: false }).send({ to: 'a@b.c', subject: 'Reset', text: 'the link' });
+    assert.match(lines[0], /the link/);
+    assert.doesNotMatch(lines[1], /the link/);
+    assert.match(lines[1], /BREVO_API_KEY/);
+    const email = passwordResetEmail({ name: 'Ana <b>Petrova</b>', link: 'https://x/#/reset?token=a&b', minutes: 30 });
+    assert.match(email.html, /Hi Ana,/);
+    assert.match(email.html, /token=a&amp;b/);
   });
 });

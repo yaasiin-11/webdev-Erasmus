@@ -1,14 +1,23 @@
 import express from 'express';
 import { fileURLToPath } from 'node:url';
 import { authRoutes } from './routes/auth.js';
-import { groupRoutes, sessionRoutes } from './routes/groups.js';
+import { groupRoutes, messageRoutes, sessionRoutes } from './routes/groups.js';
 import { agendaRoutes, meRoutes } from './routes/me.js';
 import { apiNotFound, attachUser, errorHandler, sameOriginWrites, securityHeaders } from './http/middleware.js';
 import { createAttemptLimiter } from './http/rateLimit.js';
+import { createConsoleMailer } from './integrations/mailer.js';
 
 const PUBLIC_DIR = fileURLToPath(new URL('../public/', import.meta.url));
 
-export function createApp({ config, services, repos, google = null, limiter = createAttemptLimiter(), log = console }) {
+export function createApp({
+  config,
+  services,
+  repos,
+  google = null,
+  limiter = createAttemptLimiter(),
+  log = console,
+  mailer = createConsoleMailer(log.info, { showContent: !config.production }),
+}) {
   const app = express();
   app.disable('x-powered-by');
   if (config.production) app.set('trust proxy', 1);
@@ -31,9 +40,10 @@ export function createApp({ config, services, repos, google = null, limiter = cr
   api.use(express.json({ limit: '20kb' }));
   api.use(sameOriginWrites);
   api.use(attachUser({ auth: services.auth, config }));
-  api.use('/auth', authRoutes({ auth: services.auth, config, google, limiter, log }));
+  api.use('/auth', authRoutes({ auth: services.auth, config, google, limiter, mailer, log }));
   api.use('/groups', groupRoutes(services));
   api.use('/sessions', sessionRoutes(services));
+  api.use('/messages', messageRoutes(services));
   api.use('/agenda', agendaRoutes(services));
   api.use('/me', meRoutes(services));
   api.use(apiNotFound);

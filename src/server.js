@@ -3,6 +3,7 @@ import { createContainer } from './container.js';
 import { createApp } from './app.js';
 import { seedDemo, DEMO_PASSWORD, DEMO_USERS } from './seed.js';
 import { createGoogleOAuth } from './integrations/google.js';
+import { createBrevoMailer, createConsoleMailer } from './integrations/mailer.js';
 
 let config;
 try {
@@ -29,13 +30,17 @@ if (config.seedDemo && (await seedDemo({ services, repos }))) {
 }
 
 const google = config.google ? createGoogleOAuth(config.google) : null;
-const app = createApp({ config, services, repos, google, log });
+const mailer = config.mail
+  ? createBrevoMailer(config.mail)
+  : createConsoleMailer(log.info, { showContent: !config.production });
+const app = createApp({ config, services, repos, google, log, mailer });
 
 const server = app.listen(config.port, () => {
   log.info(`studyhub listening on http://localhost:${config.port}`);
   log.info(`public address ${config.baseUrl}`);
   log.info(`database: ${config.databaseUrl === 'memory' ? 'in memory (data is lost on restart)' : 'postgres'}`);
   log.info(`google sign-in: ${google ? 'on' : 'off'} · agenda model: ${config.model ? config.model.name : 'off (template fallback)'}`);
+  log.info(`password reset emails: ${config.mail ? `sent by Brevo from ${config.mail.from}` : 'printed in this log (no mail provider)'}`);
 });
 
 setInterval(() => repos.authSessions.deleteExpired(new Date()).catch(() => {}), 60 * 60 * 1000).unref();

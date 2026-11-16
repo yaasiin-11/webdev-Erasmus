@@ -42,6 +42,9 @@ export function loadConfig(env = process.env) {
           redirectUri: `${baseUrl}/api/auth/google/callback`,
         }
       : null,
+    mail: env.BREVO_API_KEY && env.MAIL_FROM
+      ? { apiKey: env.BREVO_API_KEY, from: env.MAIL_FROM, fromName: env.MAIL_FROM_NAME || 'StudyHub' }
+      : null,
     model: env.GEMINI_API_KEY
       ? { apiKey: env.GEMINI_API_KEY, name: env.MODEL_NAME || 'gemini-2.5-flash-lite' }
       : null,

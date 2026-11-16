@@ -5,6 +5,7 @@ import { createAuthService } from './services/authService.js';
 import { createGroupService } from './services/groupService.js';
 import { createStudySessionService } from './services/studySessionService.js';
 import { createAgendaService } from './services/agendaService.js';
+import { createChatService } from './services/chatService.js';
 import { createGeminiClient } from './integrations/gemini.js';
 
 export function createServices({ repos, modelClient = null, now = () => new Date(), log = () => {} }) {
@@ -13,6 +14,7 @@ export function createServices({ repos, modelClient = null, now = () => new Date
     auth: createAuthService({ repos, now }),
     groups,
     studySessions: createStudySessionService({ repos, groups, now }),
+    chat: createChatService({ repos, groups, now }),
     agenda: createAgendaService({ client: modelClient, log }),
   };
 }

@@ -27,6 +27,10 @@ export function usersRepository(db) {
       return rows[0];
     },
 
+    async setPassword(id, passwordHash) {
+      await db.query('UPDATE users SET password_hash = $2 WHERE id = $1', [id, passwordHash]);
+    },
+
     async linkGoogle(id, sub) {
       const { rows } = await db.query(
         `UPDATE users SET google_sub = $2 WHERE id = $1 RETURNING ${COLUMNS}`,

@@ -22,6 +22,10 @@ export function authSessionsRepository(db) {
       await db.query('DELETE FROM auth_sessions WHERE token_hash = $1', [tokenHash]);
     },
 
+    async deleteForUser(userId) {
+      await db.query('DELETE FROM auth_sessions WHERE user_id = $1', [userId]);
+    },
+
     async deleteExpired(now) {
       await db.query('DELETE FROM auth_sessions WHERE expires_at <= $1', [now]);
     },
@@ -60,6 +64,31 @@ export function mcpTokensRepository(db) {
 
     async delete(userId) {
       await db.query('DELETE FROM mcp_tokens WHERE user_id = $1', [userId]);
+    },
+  };
+}
+
+export function passwordResetsRepository(db) {
+  return {
+    async replace({ userId, tokenHash, expiresAt }) {
+      await db.query('DELETE FROM password_resets WHERE user_id = $1', [userId]);
+      await db.query(
+        'INSERT INTO password_resets (token_hash, user_id, expires_at) VALUES ($1, $2, $3)',
+        [tokenHash, userId, expiresAt],
+      );
+    },
+
+    async findUsable(tokenHash, now) {
+      const { rows } = await db.query(
+        `SELECT user_id FROM password_resets
+          WHERE token_hash = $1 AND used_at IS NULL AND expires_at > $2`,
+        [tokenHash, now],
+      );
+      return rows[0] ?? null;
+    },
+
+    async markUsed(tokenHash, now) {
+      await db.query('UPDATE password_resets SET used_at = $2 WHERE token_hash = $1', [tokenHash, now]);
     },
   };
 }
