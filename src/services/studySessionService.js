@@ -11,7 +11,20 @@ export function upcoming(sessions, now) {
   return sessions.filter((session) => endOf(session) > now);
 }
 
-export function toSessionDto(row, viewerId) {
+export const RSVP_STATUSES = ['going', 'not_going'];
+
+export function attendance(sessionId, rsvps, viewerId) {
+  const mineRow = rsvps.find((r) => r.session_id === sessionId && r.user_id === viewerId);
+  const going = rsvps.filter((r) => r.session_id === sessionId && r.status === 'going');
+  return {
+    going: going.length,
+    notGoing: rsvps.filter((r) => r.session_id === sessionId && r.status === 'not_going').length,
+    goingNames: going.map((r) => r.name),
+    mine: mineRow ? mineRow.status : null,
+  };
+}
+
+export function toSessionDto(row, viewerId, rsvps = []) {
   return {
     id: row.id,
     groupId: row.group_id,
@@ -25,6 +38,7 @@ export function toSessionDto(row, viewerId) {
     agendaSource: row.agenda_source,
     createdBy: { id: row.created_by, name: row.created_by_name },
     canEdit: row.created_by === viewerId,
+    attendance: attendance(row.id, rsvps, viewerId),
   };
 }
 
@@ -70,6 +84,11 @@ export function createStudySessionService({ repos, groups, now }) {
     }
   }
 
+  async function withAttendance(sessionId, viewerId) {
+    const row = await repos.studySessions.findById(sessionId);
+    return toSessionDto(row, viewerId, await repos.studySessions.rsvpsForGroup(row.group_id));
+  }
+
   async function requireSession(sessionId) {
     const session = await repos.studySessions.findById(id(sessionId, 'Session id'));
     if (!session) throw new NotFoundError('This study session does not exist.', 'SessionNotFound');
@@ -85,9 +104,11 @@ export function createStudySessionService({ repos, groups, now }) {
     const sessionId = await repos.transaction(async (tx) => {
       await tx.groups.lockById(group.id);
       assertNoClash(await tx.studySessions.listByGroup(group.id), session);
-      return tx.studySessions.insert({ groupId: group.id, createdBy: userId, ...session });
+      const newId = await tx.studySessions.insert({ groupId: group.id, createdBy: userId, ...session });
+      await tx.studySessions.insertRsvp(newId, userId, 'going', now());
+      return newId;
     });
-    return toSessionDto(await repos.studySessions.findById(sessionId), userId);
+    return withAttendance(sessionId, userId);
   }
 
   async function rescheduleSession(userId, sessionId, input) {
@@ -101,7 +122,7 @@ export function createStudySessionService({ repos, groups, now }) {
       assertNoClash(await tx.studySessions.listByGroup(current.group_id), session, current.id);
       await tx.studySessions.update(current.id, session);
     });
-    return toSessionDto(await repos.studySessions.findById(current.id), userId);
+    return withAttendance(current.id, userId);
   }
 
   async function cancelSession(userId, sessionId) {
@@ -114,18 +135,44 @@ export function createStudySessionService({ repos, groups, now }) {
 
   async function upcomingForUser(userId) {
     const from = new Date(now().getTime() - MAX_DURATION * MINUTE);
-    const rows = await repos.studySessions.listForMember(userId, from);
-    return upcoming(rows, now()).map((row) => toSessionDto(row, userId));
+    const [rows, rsvps] = await Promise.all([
+      repos.studySessions.listForMember(userId, from),
+      repos.studySessions.rsvpsForMember(userId),
+    ]);
+    return upcoming(rows, now()).map((row) => toSessionDto(row, userId, rsvps));
   }
 
   async function groupSchedule(viewerId, groupId) {
     const group = await groups.requireGroup(viewerId, groupId);
-    const rows = await repos.studySessions.listByGroup(group.id);
+    const [rows, rsvps] = await Promise.all([
+      repos.studySessions.listByGroup(group.id),
+      repos.studySessions.rsvpsForGroup(group.id),
+    ]);
     return {
       group: { id: group.id, title: group.title },
-      sessions: upcoming(rows, now()).map((row) => toSessionDto(row, viewerId)),
+      sessions: upcoming(rows, now()).map((row) => toSessionDto(row, viewerId, rsvps)),
     };
   }
 
-  return { scheduleSession, rescheduleSession, cancelSession, upcomingForUser, groupSchedule };
+  async function setRsvp(userId, sessionId, status) {
+    const session = await requireSession(sessionId);
+    const group = await groups.requireGroup(userId, session.group_id);
+    if (!group.is_member) {
+      throw new ForbiddenError('Only members of this group can answer for its sessions.', 'NotMember');
+    }
+    if (endOf(session) <= now()) {
+      throw new ValidationError('This session is already over.', 'SessionOver');
+    }
+    const existing = await repos.studySessions.findRsvp(session.id, userId);
+    if (status === null) {
+      if (existing) await repos.studySessions.deleteRsvp(session.id, userId);
+    } else {
+      oneOf(status, RSVP_STATUSES, 'Answer');
+      if (existing) await repos.studySessions.updateRsvp(session.id, userId, status, now());
+      else await repos.studySessions.insertRsvp(session.id, userId, status, now());
+    }
+    return withAttendance(session.id, userId);
+  }
+
+  return { scheduleSession, rescheduleSession, cancelSession, upcomingForUser, groupSchedule, setRsvp };
 }

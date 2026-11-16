@@ -62,7 +62,60 @@ export function studySessionsRepository(db) {
     },
 
     async delete(id) {
+      await db.query('DELETE FROM session_rsvps WHERE session_id = $1', [id]);
       await db.query('DELETE FROM study_sessions WHERE id = $1', [id]);
+    },
+
+    async rsvpsForGroup(groupId) {
+      const { rows } = await db.query(
+        `SELECT r.session_id, r.user_id, r.status, u.name
+           FROM session_rsvps r
+           JOIN study_sessions s ON s.id = r.session_id
+           JOIN users u ON u.id = r.user_id
+          WHERE s.group_id = $1
+          ORDER BY r.updated_at, r.user_id`,
+        [groupId],
+      );
+      return rows;
+    },
+
+    async rsvpsForMember(userId) {
+      const { rows } = await db.query(
+        `SELECT r.session_id, r.user_id, r.status, u.name
+           FROM session_rsvps r
+           JOIN study_sessions s ON s.id = r.session_id
+           JOIN group_memberships gm ON gm.group_id = s.group_id AND gm.user_id = $1
+           JOIN users u ON u.id = r.user_id
+          ORDER BY r.updated_at, r.user_id`,
+        [userId],
+      );
+      return rows;
+    },
+
+    async findRsvp(sessionId, userId) {
+      const { rows } = await db.query(
+        'SELECT status FROM session_rsvps WHERE session_id = $1 AND user_id = $2',
+        [sessionId, userId],
+      );
+      return rows[0] ?? null;
+    },
+
+    async insertRsvp(sessionId, userId, status, at) {
+      await db.query(
+        'INSERT INTO session_rsvps (session_id, user_id, status, updated_at) VALUES ($1, $2, $3, $4)',
+        [sessionId, userId, status, at],
+      );
+    },
+
+    async updateRsvp(sessionId, userId, status, at) {
+      await db.query(
+        'UPDATE session_rsvps SET status = $3, updated_at = $4 WHERE session_id = $1 AND user_id = $2',
+        [sessionId, userId, status, at],
+      );
+    },
+
+    async deleteRsvp(sessionId, userId) {
+      await db.query('DELETE FROM session_rsvps WHERE session_id = $1 AND user_id = $2', [sessionId, userId]);
     },
   };
 }

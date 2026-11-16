@@ -169,3 +169,72 @@ describe('scheduling study sessions', () => {
     assert.equal(findClash(existing, at('2030-01-01T10:30:00Z'), 60, 1), undefined);
   });
 });
+
+describe('answering for a session', () => {
+  let world;
+  let api;
+  let group;
+  let session;
+  let ana;
+  let boris;
+  before(async () => {
+    world = await makeWorld();
+    group = await world.group('ana');
+    await world.services.groups.joinGroup(world.users.boris.id, group.id);
+    session = await world.services.studySessions.scheduleSession(world.users.ana.id, group.id, {
+      topic: 'Revision', startsAt: hoursFromStart(10), durationMinutes: 60,
+    });
+    api = await startServer(world);
+    ana = await api.login('ana@test.dev');
+    boris = await api.login('boris@test.dev');
+  });
+  after(() => api.close());
+
+  const answer = (cookie, status, id = session.id) => api.request(`/api/sessions/${id}/rsvp`, { method: 'PUT', cookie, body: { status } });
+
+  test('AC-45 the person who schedules a session is counted as going', () => {
+    assert.deepEqual(session.attendance, { going: 1, notGoing: 0, goingNames: ['Ana Petrova'], mine: 'going' });
+  });
+
+  test('AC-45 a member answers "Going" or "Can\'t go", can change their mind, and everyone sees the counts', async () => {
+    const going = await answer(boris, 'going');
+    assert.equal(going.status, 200);
+    assert.deepEqual(going.json.session.attendance, { going: 2, notGoing: 0, goingNames: ['Ana Petrova', 'Boris Ivanov'], mine: 'going' });
+
+    const changed = await answer(boris, 'not_going');
+    assert.deepEqual(changed.json.session.attendance, { going: 1, notGoing: 1, goingNames: ['Ana Petrova'], mine: 'not_going' });
+
+    const page = await api.request(`/api/groups/${group.id}`, { cookie: ana });
+    assert.deepEqual(page.json.group.sessions[0].attendance, { going: 1, notGoing: 1, goingNames: ['Ana Petrova'], mine: 'going' });
+
+    const cleared = await api.request(`/api/sessions/${session.id}/rsvp`, { method: 'DELETE', cookie: boris });
+    assert.equal(cleared.json.session.attendance.mine, null);
+    assert.equal(cleared.json.session.attendance.notGoing, 0);
+    assert.equal((await api.request(`/api/sessions/${session.id}/rsvp`, { method: 'DELETE', cookie: boris })).status, 200);
+
+    const mine = await api.request('/api/sessions/upcoming', { cookie: ana });
+    assert.equal(mine.json.sessions[0].attendance.mine, 'going');
+  });
+
+  test('AC-46 only members can answer, the answer must be "going" or "not_going", and a finished session cannot be answered', async () => {
+    const carmen = await api.login('carmen@test.dev');
+    assert.equal((await answer(carmen, 'going')).status, 403);
+    assert.equal((await answer(undefined, 'going')).status, 401);
+    assert.equal((await answer(boris, 'maybe')).status, 422);
+    assert.equal((await answer(boris)).status, 422);
+    assert.equal((await answer(boris, 'going', 98765)).status, 404);
+
+    world.advance(12);
+    const late = await answer(boris, 'going');
+    assert.equal(late.status, 422);
+    assert.equal(late.json.error, 'This session is already over.');
+  });
+
+  test('AC-46 cancelling a session removes its answers', async () => {
+    const extra = await world.services.studySessions.scheduleSession(world.users.ana.id, group.id, {
+      topic: 'Extra', startsAt: hoursFromStart(100), durationMinutes: 30,
+    });
+    await world.services.studySessions.cancelSession(world.users.ana.id, extra.id);
+    assert.equal(await world.repos.studySessions.findRsvp(extra.id, world.users.ana.id), null);
+  });
+});
