@@ -16,7 +16,7 @@ function normalizeEmail(value) {
   return email;
 }
 
-export function createAuthService({ repos, now = () => new Date() }) {
+export function createAuthService({ repos, now }) {
   async function register({ name, email, password }) {
     const cleanName = text(name, { field: 'Name', min: 2, max: 60 });
     const cleanEmail = normalizeEmail(email);

@@ -22,7 +22,7 @@ export function toGroupDto(row, viewerId) {
   };
 }
 
-export function createGroupService({ repos, now = () => new Date() }) {
+export function createGroupService({ repos, now }) {
   async function requireGroup(viewerId, groupId, db = repos) {
     const row = await db.groups.findForViewer(id(groupId, 'Group id'), viewerId, now());
     if (!row) throw new NotFoundError('This study group does not exist.', 'GroupNotFound');

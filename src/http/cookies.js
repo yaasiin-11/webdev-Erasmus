@@ -6,11 +6,12 @@ export const OAUTH_COOKIE = 'oauth';
 export function parseCookies(header = '') {
   const cookies = {};
   for (const part of header.split(';')) {
-    const index = part.indexOf('=');
+    const pair = part.trim();
+    const index = pair.indexOf('=');
     if (index < 1) continue;
-    const name = part.slice(0, index).trim();
+    const name = pair.slice(0, index);
     try {
-      cookies[name] = decodeURIComponent(part.slice(index + 1).trim());
+      cookies[name] = decodeURIComponent(pair.slice(index + 1));
     } catch {
       cookies[name] = '';
     }

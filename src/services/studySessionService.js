@@ -39,7 +39,7 @@ export function findClash(sessions, startsAt, durationMinutes, ignoreId = null) 
   });
 }
 
-export function createStudySessionService({ repos, groups, now = () => new Date() }) {
+export function createStudySessionService({ repos, groups, now }) {
   function clean(input, current = {}) {
     const startsAt = date(input.startsAt ?? current.starts_at, 'Start time');
     if (startsAt <= now()) {
