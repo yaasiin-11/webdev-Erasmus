@@ -1,61 +1,110 @@
-import db from '../db.js';
+import { ConflictError, ForbiddenError, NotFoundError } from './errors.js';
+import { id, integer, oneOf, text } from './validate.js';
+import { toSessionDto, upcoming } from './studySessionService.js';
 
-export function getAllStudyGroups() {
-  const groups = db.prepare(`
-    SELECT g.id, g.title, g.description, g.study_field, g.meeting_topic, g.max_capacity,
-           (SELECT COUNT(*) FROM group_memberships gm WHERE gm.group_id = g.id) AS member_count
-    FROM study_groups g
-  `).all();
-  return groups;
+export const CATEGORIES = ['university', 'civil-service', 'certification', 'languages', 'other'];
+
+export function toGroupDto(row, viewerId) {
+  return {
+    id: row.id,
+    title: row.title,
+    subject: row.subject,
+    description: row.description,
+    category: row.category,
+    maxCapacity: row.max_capacity,
+    memberCount: row.member_count,
+    isFull: row.member_count >= row.max_capacity,
+    isMember: Boolean(row.is_member),
+    isOwner: row.creator_id === viewerId,
+    creator: { id: row.creator_id, name: row.creator_name },
+    nextSessionAt: row.next_session_at ? new Date(row.next_session_at).toISOString() : null,
+    createdAt: new Date(row.created_at).toISOString(),
+  };
 }
 
-export function joinGroup(userId, groupId) {
-  const group = db.prepare('SELECT * FROM study_groups WHERE id = ?').get(groupId);
-  if (!group) {
-    throw new Error('Group not found');
+export function createGroupService({ repos, now = () => new Date() }) {
+  async function requireGroup(viewerId, groupId, db = repos) {
+    const row = await db.groups.findForViewer(id(groupId, 'Group id'), viewerId, now());
+    if (!row) throw new NotFoundError('This study group does not exist.', 'GroupNotFound');
+    return row;
   }
 
-  const existingMembership = db.prepare('SELECT 1 FROM group_memberships WHERE user_id = ? AND group_id = ?').get(userId, groupId);
-  if (existingMembership) {
-    throw new Error('User is already a member of this group');
+  async function listGroups(viewerId, { category, search, mine } = {}) {
+    const rows = await repos.groups.list({
+      viewerId,
+      now: now(),
+      category: category ? oneOf(category, CATEGORIES, 'Category') : null,
+      search: text(search, { field: 'Search', max: 80, optional: true }) || null,
+      onlyMine: mine === true || mine === 'true' || mine === '1',
+    });
+    return rows.map((row) => toGroupDto(row, viewerId));
   }
 
-  const memberCount = db.prepare('SELECT COUNT(*) as count FROM group_memberships WHERE group_id = ?').get(groupId).count;
-  const maxCapacity = group.max_capacity || 5;
-  if (memberCount >= maxCapacity) {
-    throw new Error('Group is at maximum capacity');
+  async function getGroup(viewerId, groupId) {
+    const row = await requireGroup(viewerId, groupId);
+    const [members, sessions] = await Promise.all([
+      repos.groups.members(row.id),
+      repos.studySessions.listByGroup(row.id),
+    ]);
+    return {
+      ...toGroupDto(row, viewerId),
+      members: members.map((m) => ({ id: m.id, name: m.name, joinedAt: new Date(m.joined_at).toISOString() })),
+      sessions: upcoming(sessions, now()).map((s) => toSessionDto(s, viewerId)),
+    };
   }
 
-  db.prepare('INSERT INTO group_memberships (user_id, group_id) VALUES (?, ?)').run(userId, groupId);
-  return { success: true };
-}
-
-export function leaveGroup(userId, groupId) {
-  const group = db.prepare('SELECT * FROM study_groups WHERE id = ?').get(groupId);
-  if (!group) {
-    throw new Error('Group not found');
+  async function createGroup(userId, input) {
+    const group = {
+      title: text(input.title, { field: 'Title', min: 3, max: 80 }),
+      subject: text(input.subject, { field: 'Subject', min: 2, max: 80 }),
+      description: text(input.description, { field: 'Description', max: 500, optional: true }),
+      category: oneOf(input.category, CATEGORIES, 'Category'),
+      maxCapacity: integer(input.maxCapacity, { field: 'Capacity', min: 2, max: 50 }),
+      creatorId: userId,
+    };
+    const groupId = await repos.transaction(async (tx) => {
+      const newId = await tx.groups.insert(group);
+      await tx.groups.addMember(newId, userId);
+      return newId;
+    });
+    return getGroup(userId, groupId);
   }
 
-  const existingMembership = db.prepare('SELECT 1 FROM group_memberships WHERE user_id = ? AND group_id = ?').get(userId, groupId);
-  if (!existingMembership) {
-    throw new Error('User is not a member of this group');
+  async function joinGroup(userId, groupId) {
+    const gid = id(groupId, 'Group id');
+    await repos.transaction(async (tx) => {
+      const group = await tx.groups.lockById(gid);
+      if (!group) throw new NotFoundError('This study group does not exist.', 'GroupNotFound');
+      if (await tx.groups.isMember(gid, userId)) {
+        throw new ConflictError('You are already a member of this group.', 'AlreadyMember');
+      }
+      if ((await tx.groups.countMembers(gid)) >= group.max_capacity) {
+        throw new ConflictError('This group is full.', 'GroupFull');
+      }
+      await tx.groups.addMember(gid, userId);
+    });
+    return getGroup(userId, gid);
   }
 
-  db.prepare('DELETE FROM group_memberships WHERE user_id = ? AND group_id = ?').run(userId, groupId);
-  return { success: true };
-}
-
-export function deleteGroup(userId, groupId) {
-  const group = db.prepare('SELECT * FROM study_groups WHERE id = ?').get(groupId);
-  if (!group) {
-    throw new Error('Group not found');
+  async function leaveGroup(userId, groupId) {
+    const row = await requireGroup(userId, groupId);
+    if (row.creator_id === userId) {
+      throw new ConflictError('You created this group, so you cannot leave it. Delete the group instead.', 'OwnerCannotLeave');
+    }
+    if (!row.is_member) {
+      throw new ConflictError('You are not a member of this group.', 'NotMember');
+    }
+    await repos.groups.removeMember(row.id, userId);
+    return getGroup(userId, row.id);
   }
 
-  if (group.creator_id !== userId) {
-    throw new Error('Forbidden: only the group owner can delete this group');
+  async function deleteGroup(userId, groupId) {
+    const row = await requireGroup(userId, groupId);
+    if (row.creator_id !== userId) {
+      throw new ForbiddenError('Only the person who created this group can delete it.', 'NotOwner');
+    }
+    await repos.transaction((tx) => tx.groups.delete(row.id));
   }
 
-  db.prepare('DELETE FROM group_memberships WHERE group_id = ?').run(groupId);
-  db.prepare('DELETE FROM study_groups WHERE id = ?').run(groupId);
-  return { success: true };
+  return { listGroups, getGroup, createGroup, joinGroup, leaveGroup, deleteGroup, requireGroup };
 }
