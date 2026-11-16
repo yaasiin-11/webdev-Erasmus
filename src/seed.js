@@ -20,10 +20,11 @@ const GROUPS = [
     messages: [
       ['ana', 'Hi both! I uploaded my notes on polar coordinates to our shared folder.'],
       ['boris', 'Thanks Ana. Can we spend ten minutes on exercise 7 before the past exam?'],
-      ['ana', 'Sure, I added it to the agenda of Tuesday\u2019s session.'],
+      ['ana', 'Sure, I added it to the agenda of Tuesday\u2019s session.', '🙏'],
+      ['boris', '🎉'],
     ],
     sessions: [
-      { by: 'ana', topic: 'Double integrals and Fubini', day: 1, hour: 17, minutes: 90, location: 'Library, room 2.14', withAgenda: true },
+      { by: 'ana', topic: 'Double integrals and Fubini', day: 1, hour: 17, minutes: 90, location: 'Library, room 2.14', withAgenda: true, going: ['boris'] },
       { by: 'boris', topic: 'Past exam 2025, part A', day: 4, hour: 16, minutes: 120, location: 'https://meet.example.org/calc-finals' },
     ],
   },
@@ -55,7 +56,7 @@ const GROUPS = [
     category: 'languages',
     maxCapacity: 10,
     description: 'Cyrillic, café vocabulary and enough grammar to survive the market. Beginners welcome.',
-    sessions: [{ by: 'boris', topic: 'Cyrillic and café vocabulary', day: 3, hour: 15, minutes: 45, location: 'Student centre café' }],
+    sessions: [{ by: 'boris', topic: 'Cyrillic and café vocabulary', day: 3, hour: 15, minutes: 45, location: 'Student centre café', notGoing: ['ana'] }],
   },
   {
     owner: 'boris',
@@ -81,12 +82,16 @@ export async function seedDemo({ services, repos, now = new Date() }) {
   for (const group of GROUPS) {
     const created = await services.groups.createGroup(users[group.owner].id, group);
     for (const member of group.members) await services.groups.joinGroup(users[member].id, created.id);
-    for (const [author, body] of group.messages ?? []) {
-      await services.chat.postMessage(users[author].id, created.id, { body });
+    for (const [author, body, reaction] of group.messages ?? []) {
+      const message = await services.chat.postMessage(users[author].id, created.id, { body });
+      if (reaction) {
+        const other = author === 'ana' ? 'boris' : 'ana';
+        await services.chat.toggleReaction(users[other].id, message.id, reaction);
+      }
     }
     for (const session of group.sessions) {
       const startsAt = new Date(tomorrow.getTime() + ((session.day - 1) * 24 + session.hour) * 3600 * 1000);
-      await services.studySessions.scheduleSession(users[session.by].id, created.id, {
+      const scheduled = await services.studySessions.scheduleSession(users[session.by].id, created.id, {
         topic: session.topic,
         startsAt: startsAt.toISOString(),
         durationMinutes: session.minutes,
@@ -94,6 +99,8 @@ export async function seedDemo({ services, repos, now = new Date() }) {
         agenda: session.withAgenda ? renderAgenda(session.topic, fallbackItems(session.minutes), session.hour * 60) : '',
         agendaSource: session.withAgenda ? 'fallback' : 'manual',
       });
+      for (const person of session.going ?? []) await services.studySessions.setRsvp(users[person].id, scheduled.id, 'going');
+      for (const person of session.notGoing ?? []) await services.studySessions.setRsvp(users[person].id, scheduled.id, 'not_going');
     }
   }
   return true;

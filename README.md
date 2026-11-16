@@ -1,6 +1,6 @@
 # StudyHub
 
-StudyHub helps students and exam candidates find each other, form study groups, talk in a group chat and plan shared study sessions. A university course, a civil service exam, a certification or a language exam: you find the people preparing the same thing, take a place in their group, and everyone sees the group's timetable. When you plan a session, StudyHub can suggest an agenda with Gemini, and an AI agent can use the same rules through MCP.
+StudyHub helps students and exam candidates find each other, form study groups, talk in a group chat with emoji and reactions, and plan shared study sessions where everyone says whether they are coming. A university course, a civil service exam, a certification or a language exam: you find the people preparing the same thing, take a place in their group, and everyone sees the group's timetable. When you plan a session, StudyHub can suggest an agenda with Gemini, and an AI agent can use the same rules through MCP.
 
 The specification, with every acceptance criterion and where it is tested, is in [SPEC.md](SPEC.md).
 
@@ -16,7 +16,7 @@ npm start
 
 | Account | Password | What you see |
 |---|---|---|
-| `ana@studyhub.test` | `StudyHub2026!` | Created two groups and is a member of two more, with sessions this week |
+| `ana@studyhub.test` | `StudyHub2026!` | Created two groups and is a member of two more, with sessions this week and one unread chat message |
 | `boris@studyhub.test` | `StudyHub2026!` | Creator of three groups, including the full "SQL and normalisation clinic" |
 | `carmen@studyhub.test` | `StudyHub2026!` | In no group yet: the empty states, and the "Full" button on the SQL clinic |
 

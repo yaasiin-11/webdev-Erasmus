@@ -103,6 +103,13 @@ describe('group chat', () => {
     await world.services.groups.joinGroup(world.users.boris.id, group.id);
   });
 
+  test('AC-36 emoji from the picker are stored and returned exactly as typed', async () => {
+    const sent = await post(ana, '📚🔥 good luck tomorrow 🍀👍🏽');
+    assert.equal(sent.status, 201);
+    const back = (await read(boris)).json.messages.at(-1);
+    assert.equal(back.body, '📚🔥 good luck tomorrow 🍀👍🏽');
+  });
+
   test('AC-39 HTML in a message is stored as plain text, never as markup', async () => {
     const sent = await post(ana, '<img src=x onerror=alert(1)>');
     assert.equal(sent.json.message.body, '<img src=x onerror=alert(1)>');

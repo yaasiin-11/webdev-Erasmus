@@ -136,3 +136,12 @@ Changed in review:
 - Went wrong: pg-mem has no `char_length`, used by the message length constraint; it is registered for the in-memory database only. In production without a mail provider the start-up line first claimed the email would be printed, which it is not; corrected.
 - Changed in review: chat and email were non-goals, so SPEC.md now has slices 7 and 8 and narrower non-goals.
 - Changed by hand: to do: create the Brevo account and verify the sender, then try a real reset email.
+
+## 2026-11-17 · Better chat and new features (Claude coding agent)
+- Goal: a better group chat with emoji, plus the features that help a study group most.
+- Autonomy: the agent chose the features and built them end to end with tests, committing after each one; no new dependencies and no secrets.
+- Plan: (1) migration 006 with `message_reactions` and `chat_reads`: reactions limited to 8 emoji, toggled by a second click, and an unread count per group in the list; (2) migration 007 with `session_rsvps`: "Going" or "Can't go" under every session, the organiser counted as going; (3) chat interface rebuilt: emoji picker in three sets, reactions with names, day separators, follow-up messages grouped, clickable https links, emoji-only messages shown large, a character counter near the limit, and screen reader announcements only for new messages from others; (4) "Copy invite link" on the group page, and signing in from an invite link now lands on that group.
+- Checkpoints: 105 tests, 100% coverage of the services, the self-checks, the new SQL run on a real Postgres, and a browser run with two accounts on desktop and at 380 pixels.
+- Went wrong: on touch screens the "+" for reactions sat under every message and cluttered the chat; it now appears on the message you tap. The browser script read the groups list while the skeleton rows were still showing (they share the `ledger` class), which looked like a missing unread count; the API itself was right.
+- Changed in review: SPEC.md has slice 9 (AC-43 to AC-46); the invite link has no criterion because it only exists in the browser.
+- Changed by hand: nothing yet.

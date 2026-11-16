@@ -72,7 +72,7 @@ describe('MCP server', () => {
       groupId: algebra.id, topic: 'Diagonalisation', startsAt: hoursFromStart(48), durationMinutes: 90,
     }));
     assert.equal(created.result.isError, false);
-    assert.match(textOf(created), /^Scheduled\. #\d+ Diagonalisation: 2030-03-06 09:00 UTC to 2030-03-06 10:30 UTC, by Ana Petrova$/);
+    assert.match(textOf(created), /^Scheduled\. #\d+ Diagonalisation: 2030-03-06 09:00 UTC to 2030-03-06 10:30 UTC, by Ana Petrova, 1 going$/);
 
     const clash = await ana(call(2, 'create_study_session', {
       groupId: algebra.id, topic: 'Clash', startsAt: hoursFromStart(48.5), durationMinutes: 30,
@@ -99,7 +99,7 @@ describe('MCP server', () => {
   test('AC-31 get_group_schedule lists upcoming sessions with their agenda, and says when there are none', async () => {
     const handle = handlerFor(carmenToken);
     const schedule = textOf(await handle(call(1, 'get_group_schedule', { groupId: algebra.id })));
-    assert.match(schedule, /^Upcoming sessions of Linear algebra:\n#\d+ Eigenvalues: 2030-03-05 09:00 UTC to 2030-03-05 10:00 UTC at Room 4, by Ana Petrova\n  - warm-up\n  - proofs/);
+    assert.match(schedule, /^Upcoming sessions of Linear algebra:\n#\d+ Eigenvalues: 2030-03-05 09:00 UTC to 2030-03-05 10:00 UTC at Room 4, by Ana Petrova, 1 going\n  - warm-up\n  - proofs/);
     const spanish = (await world.services.groups.listGroups(world.users.carmen.id, { category: 'languages' }))[0];
     assert.equal(textOf(await handle(call(2, 'get_group_schedule', { groupId: spanish.id }))), 'Spanish C1 has no upcoming sessions.');
     const missing = await handle(call(3, 'get_group_schedule', { groupId: 424242 }));

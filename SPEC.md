@@ -47,7 +47,7 @@ StudyHub is an open study group platform for any type of learner (university stu
 - Screens:
   - Sign-in and registration screen with email and password, and the Google button when Google is configured.
   - Study groups list with search, category filter, "only my groups", a seat map per group and a join, leave or full button.
-  - Group page with the upcoming sessions timetable, the group chat, the members, the planning form with the agenda suggestion, and delete for the creator.
+  - Group page with the upcoming sessions timetable and "Going / Can't go" answers, the group chat with emoji picker and reactions, a "Copy invite link" button, the members, the planning form with the agenda suggestion, and delete for the creator.
   - Forgot password and choose a new password screens.
   - My sessions: every upcoming session of my groups, grouped by day.
   - Profile with the MCP token for agents.
@@ -101,7 +101,7 @@ StudyHub is an open study group platform for any type of learner (university stu
 - [AC-35] After 10 failed sign-ins for the same email from the same address within 15 minutes, further attempts answer 429 even with the right password.
 
 ### Slice 7: group chat
-- [AC-36] When a member types a message in the group chat and presses Enter or "Send", it appears at once with their name and the time, and the other members see it within 5 seconds without reloading.
+- [AC-36] When a member types a message in the group chat, optionally adds emoji from the emoji button, and presses Enter or "Send", it appears at once with their name and the time, exactly as typed, and the other members see it within 5 seconds without reloading.
 - [AC-37] The chat opens on the latest 50 messages, oldest first; asking for the messages after the last one seen returns only the new ones.
 - [AC-38] Somebody who is not a member of the group, or who has left it, cannot read or write its chat (403); nobody signed in gets 401.
 - [AC-39] An empty message or one longer than 1000 characters is refused with 422, and HTML in a message is shown as plain text.
@@ -110,6 +110,12 @@ StudyHub is an open study group platform for any type of learner (university stu
 ### Slice 8: forgotten password
 - [AC-41] When a user clicks "Forgot your password?" and enters their email, the page answers the same sentence whether the account exists or not, and the account owner gets an email with a single-use link; more than 10 requests for one email from one address within 15 minutes answer 429.
 - [AC-42] Opening the link and entering a new password twice saves it as a new scrypt hash, signs the user in and signs out every other session; the link stops working after one use, after 30 minutes or when a newer link is requested.
+
+### Slice 9: reactions, unread messages and attendance
+- [AC-43] A member reacts to a message with one of 👍 ❤️ 😂 🎉 🙏 🤔 👀 ✅; everyone sees each emoji with its count and who reacted, clicking the same reaction again takes it back, any other emoji answers 422, and a non-member gets 403.
+- [AC-44] On the study groups list, each group the user belongs to shows "N new messages in the chat" for messages from others they have not seen; opening the group chat clears it.
+- [AC-45] Under every upcoming session a member clicks "Going" or "Can't go"; the session shows how many are going and their names, the person who scheduled it counts as going, and clicking the chosen answer again removes it.
+- [AC-46] Only members of the group can answer for a session (403), the answer must be "going" or "not_going" (422), a session that is over cannot be answered (422), and cancelling a session removes its answers.
 
 ## Traceability
 | Criterion | Test |
@@ -156,6 +162,10 @@ StudyHub is an open study group platform for any type of learner (university stu
 | AC-40 | tests/chat.test.js |
 | AC-41 | tests/auth.test.js |
 | AC-42 | tests/auth.test.js |
+| AC-43 | tests/chat.test.js |
+| AC-44 | tests/chat.test.js |
+| AC-45 | tests/sessions.test.js |
+| AC-46 | tests/sessions.test.js |
 
 ## Architecture
 One request, `POST /api/groups/:id/membership` (join a group), through every layer:
@@ -174,17 +184,18 @@ Where this codebase does not match its own layering: `src/routes/auth.js` holds 
 | Screen | Rendered | Why | While the data is on its way |
 | --- | --- | --- | --- |
 | Sign-in and registration | Browser | It needs no data from the server except whether Google is configured, so it paints at once. | The form is usable immediately; the submit button shows "Signing in…". |
-| Study groups list | Browser | Filters and join/leave change one row or the list without reloading the page. | Three skeleton rows that reserve the space of the real rows. |
+| Study groups list | Browser | Filters, join/leave and the unread counts change one row or the list without reloading the page. | Three skeleton rows that reserve the space of the real rows. |
 | Group page | Browser | Joining, planning and moving sessions update the timetable in place, and the chat asks for new messages every 5 seconds. | A "Loading the group…" status line, then "Loading messages…" inside the chat. |
 | My sessions | Browser | Same data shape as the group timetable, reused from the same component. | A "Loading your timetable…" status line. |
 | Forgot and reset password | Browser | Two small forms; the reset token stays in the address fragment, which the browser never sends to the server or in a Referer. | The button shows "Sending…" or "Saving…". |
 | Profile | Browser | The token is shown once after a click and must never be cached in a page. | "Checking your token…". |
 
 ## Spec vs result
-- All 42 criteria are implemented and named in a test; `npm test` runs 95 tests with no failures, and the service layer is covered at 100% of lines and branches.
+- All 46 criteria are implemented and named in a test; `npm test` runs 105 tests with no failures, and the service layer is covered at 100% of lines and branches.
 - The first version of slice 2 answered 400 for a full group and kept a capacity check that two simultaneous joins could pass; I changed the spec to 409 (AC-11, AC-12) and the service now locks the group row in a transaction.
 - The first spec said the model failure shows an empty text area. I changed it (The model feature, AC-26, AC-27): an empty box gave members nothing to start from, so the fallback is now a standard template that adds up to the session length and is clearly labelled.
 - The MCP table first allowed anonymous calls to `list_study_groups`, while the website requires sign-in for the same list. I changed it so every project tool needs a token, which keeps one set of rules for both front doors.
 - The first agenda suggestion numbered its blocks from 00:00 whatever the start time; testing it in the browser showed the problem, and AC-25 now says the times begin at the session start.
 - Chat and password reset were non-goals at first. After using the app I moved them into scope (slices 7 and 8) and narrowed the non-goals: no file sharing, and no email except the reset link.
+- Slice 9 came from using the chat: without reactions every "ok" became a message, and the organiser had no way to know who would come to a session. An invite link opens the group after sign-in, which is checked by hand because it lives only in the browser.
 - Not covered by automated tests: the look of the four states and keyboard use in a real browser; those are checked by hand in `docs/UI.md`.
