@@ -144,6 +144,14 @@ function planner(group, reload) {
     h('div', { class: 'form-actions' }, submit),
   );
 
+  for (const name of ['time', 'durationMinutes']) {
+    form.elements[name].addEventListener('change', () => {
+      if (agendaSource !== 'manual' && agenda.value) {
+        note.textContent = 'The start or the length changed. Click "Suggest an agenda" again to update the times.';
+      }
+    });
+  }
+
   suggest.addEventListener('click', async () => {
     const topic = form.elements.topic.value.trim();
     if (topic.length < 3) {
@@ -156,7 +164,12 @@ function planner(group, reload) {
     try {
       const result = await api('/agenda', {
         method: 'POST',
-        body: { topic, category: group.category, durationMinutes: Number(form.elements.durationMinutes.value) },
+        body: {
+          topic,
+          category: group.category,
+          durationMinutes: Number(form.elements.durationMinutes.value),
+          startTime: form.elements.time.value || undefined,
+        },
       });
       agenda.value = result.agenda;
       agendaSource = result.source;

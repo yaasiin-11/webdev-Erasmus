@@ -45,6 +45,23 @@ describe('agenda suggestion', () => {
     ].join('\n'));
   });
 
+  test('AC-25 the agenda times start at the session start time, not at midnight', async () => {
+    const client = fakeClient({ items: [
+      { title: 'Recap of determinants', minutes: 30 },
+      { title: 'Exercises from sheet 4', minutes: 30 },
+    ] });
+    const result = await createAgendaService({ client }).suggestAgenda({ ...request, startTime: '17:30' });
+    assert.equal(result.agenda, [
+      'Study agenda: Eigenvalues',
+      '- 17:30–18:00 · Recap of determinants (30 min)',
+      '- 18:00–18:30 · Exercises from sheet 4 (30 min)',
+    ].join('\n'));
+    const late = await createAgendaService().suggestAgenda({ ...request, startTime: '23:30' });
+    assert.match(late.agenda, /- 00:\d\d–00:30 · Wrap-up/);
+    await assert.rejects(createAgendaService().suggestAgenda({ ...request, startTime: '25:00' }), ValidationError);
+    await assert.rejects(createAgendaService().suggestAgenda({ ...request, startTime: null }), /look like 17:30/);
+  });
+
   test('AC-25 an answer up to 20% off is rescaled to the exact length, and code fences are ignored', async () => {
     const raw = '```json\n{"items":[{"title":"Theory","minutes":30},{"title":"Practice","minutes":40}]}\n```';
     const items = parseModelAnswer(raw, 60);

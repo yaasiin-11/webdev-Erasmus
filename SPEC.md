@@ -82,7 +82,7 @@ StudyHub is an open study group platform for any type of learner (university stu
 - [AC-24] On "My sessions", a user sees the upcoming sessions of all their groups grouped by day, and sessions that have already ended are not shown.
 
 ### Slice 4: agenda suggestion with a model
-- [AC-25] When a member writes a topic and clicks "Suggest an agenda", a usable model answer appears in the agenda box, labelled as an AI suggestion, with blocks that add up exactly to the session length; it can be edited before saving.
+- [AC-25] When a member writes a topic and clicks "Suggest an agenda", a usable model answer appears in the agenda box, labelled as an AI suggestion, with blocks that add up exactly to the session length and clock times that begin at the start time chosen in the form (a 17:30 session starts at 17:30, not at 00:00); it can be edited before saving.
 - [AC-26] When the model answers with something unusable (not JSON, fewer than 2 or more than 8 blocks, a block without a title or with an impossible length, or minutes more than 20% off), the answer is rejected and the standard template is shown with a notice; HTML and markdown in block titles are stripped.
 - [AC-27] When there is no key, the provider returns an error, or there is no answer within 8 seconds, the standard template is shown with a notice and the rest of the page keeps working.
 - [AC-28] The request to the model contains only the topic, category and length: no name, email or user id, and the key travels in a header, not in the URL.

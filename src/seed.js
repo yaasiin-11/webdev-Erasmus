@@ -83,7 +83,7 @@ export async function seedDemo({ services, repos, now = new Date() }) {
         startsAt: startsAt.toISOString(),
         durationMinutes: session.minutes,
         location: session.location,
-        agenda: session.withAgenda ? renderAgenda(session.topic, fallbackItems(session.minutes)) : '',
+        agenda: session.withAgenda ? renderAgenda(session.topic, fallbackItems(session.minutes), session.hour * 60) : '',
         agendaSource: session.withAgenda ? 'fallback' : 'manual',
       });
     }

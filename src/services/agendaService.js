@@ -1,4 +1,5 @@
 import { CATEGORIES } from './groupService.js';
+import { ValidationError } from './errors.js';
 import { integer, oneOf, text } from './validate.js';
 
 const CATEGORY_LABELS = {
@@ -28,10 +29,20 @@ export function buildPrompt({ topic, category, durationMinutes }) {
   ].join('\n');
 }
 
-const clock = (minutes) => `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+const DAY = 24 * 60;
+const clock = (minutes) => {
+  const wrapped = minutes % DAY;
+  return `${String(Math.floor(wrapped / 60)).padStart(2, '0')}:${String(wrapped % 60).padStart(2, '0')}`;
+};
 
-export function renderAgenda(topic, items) {
-  let elapsed = 0;
+export function parseStartTime(value) {
+  const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(value ?? '');
+  if (!match) throw new ValidationError('Start time must look like 17:30.', 'InvalidField');
+  return Number(match[1]) * 60 + Number(match[2]);
+}
+
+export function renderAgenda(topic, items, startMinute = 0) {
+  let elapsed = startMinute;
   const lines = items.map((item) => {
     const line = `- ${clock(elapsed)}–${clock(elapsed + item.minutes)} · ${item.title} (${item.minutes} min)`;
     elapsed += item.minutes;
@@ -95,11 +106,12 @@ export function createAgendaService({ client = null, timeoutMs = 8000, log = () 
       topic: text(input.topic, { field: 'Topic', min: 3, max: 120 }),
       category: oneOf(input.category, CATEGORIES, 'Category'),
       durationMinutes: integer(input.durationMinutes, { field: 'Duration', min: 15, max: 480 }),
+      startMinute: input.startTime === undefined ? 0 : parseStartTime(input.startTime),
     };
 
     const fallback = (notice) => {
       const items = fallbackItems(request.durationMinutes);
-      return { source: 'fallback', notice, items, agenda: renderAgenda(request.topic, items) };
+      return { source: 'fallback', notice, items, agenda: renderAgenda(request.topic, items, request.startMinute) };
     };
 
     if (!client) {
@@ -109,7 +121,7 @@ export function createAgendaService({ client = null, timeoutMs = 8000, log = () 
     try {
       const raw = await withTimeout(client.generate(buildPrompt(request)), timeoutMs);
       const items = parseModelAnswer(raw, request.durationMinutes);
-      return { source: 'model', notice: null, items, agenda: renderAgenda(request.topic, items) };
+      return { source: 'model', notice: null, items, agenda: renderAgenda(request.topic, items, request.startMinute) };
     } catch (error) {
       log(`agenda suggestion fell back: ${error.message}`);
       const reason = error instanceof InvalidModelAnswer
