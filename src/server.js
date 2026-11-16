@@ -1,109 +1,47 @@
-import express from 'express';
-import path from 'node:path';
-import { authenticateUser } from './services/userService.js';
-import { getAllStudyGroups, joinGroup, leaveGroup, deleteGroup } from './services/groupService.js';
+import { ConfigError, loadConfig } from './config.js';
+import { createContainer } from './container.js';
+import { createApp } from './app.js';
+import { seedDemo, DEMO_PASSWORD, DEMO_USERS } from './seed.js';
+import { createGoogleOAuth } from './integrations/google.js';
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+let config;
+try {
+  config = loadConfig();
+} catch (error) {
+  if (!(error instanceof ConfigError)) throw error;
+  console.error(error.message);
+  process.exit(1);
+}
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static('public'));
+const log = {
+  info: (message) => console.log(message),
+  error: (error) => console.error(error instanceof Error ? error.stack : error),
+};
 
-// API: Login route
-app.post('/api/auth/login', (req, res) => {
-  try {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
-    }
-    const user = authenticateUser(email, password);
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid email or password' });
-    }
-    // Simple session simulation via JSON response / header
-    res.json({ message: 'Login successful', user });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
+const { pool, repos, services } = await createContainer({
+  databaseUrl: config.databaseUrl,
+  model: config.model,
+  log: log.info,
 });
 
-// API: Get study groups route
-app.get('/api/groups', (req, res) => {
-  try {
-    const groups = getAllStudyGroups();
-    res.json(groups);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+if (config.seedDemo && (await seedDemo({ services, repos }))) {
+  log.info(`demo data ready: ${DEMO_USERS.map((u) => u.email).join(', ')} (password ${DEMO_PASSWORD})`);
+}
+
+const google = config.google ? createGoogleOAuth(config.google) : null;
+const app = createApp({ config, services, repos, google, log });
+
+const server = app.listen(config.port, () => {
+  log.info(`studyhub listening on http://localhost:${config.port}`);
+  log.info(`public address ${config.baseUrl}`);
+  log.info(`database: ${config.databaseUrl === 'memory' ? 'in memory (data is lost on restart)' : 'postgres'}`);
+  log.info(`google sign-in: ${google ? 'on' : 'off'} · agenda model: ${config.model ? config.model.name : 'off (template fallback)'}`);
 });
 
-// API: Join group route
-app.post('/api/groups/:id/join', (req, res) => {
-  try {
-    const userId = req.body.userId;
-    if (!userId) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-    const groupId = req.params.id;
-    joinGroup(userId, Number(groupId));
-    res.json({ message: 'Successfully joined group' });
-  } catch (err) {
-    const message = err.message;
-    if (message === 'Group not found') {
-      return res.status(404).json({ error: message });
-    }
-    if (message === 'User is already a member of this group' || message === 'Group is at maximum capacity') {
-      return res.status(400).json({ error: message });
-    }
-    res.status(400).json({ error: message });
-  }
-});
+setInterval(() => repos.authSessions.deleteExpired(new Date()).catch(() => {}), 60 * 60 * 1000).unref();
 
-// API: Leave group route
-app.post('/api/groups/:id/leave', (req, res) => {
-  try {
-    const userId = req.body.userId;
-    if (!userId) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-    const groupId = req.params.id;
-    leaveGroup(userId, Number(groupId));
-    res.json({ message: 'Successfully left group' });
-  } catch (err) {
-    const message = err.message;
-    if (message === 'Group not found') {
-      return res.status(404).json({ error: message });
-    }
-    if (message === 'User is not a member of this group') {
-      return res.status(400).json({ error: message });
-    }
-    res.status(400).json({ error: message });
-  }
-});
-
-// API: Delete group route (Owner-only action)
-app.delete('/api/groups/:id', (req, res) => {
-  const userId = req.body.userId;
-  if (!userId) {
-    return res.status(401).json({ error: 'Authentication required' });
-  }
-  try {
-    const groupId = req.params.id;
-    deleteGroup(userId, Number(groupId));
-    res.json({ message: 'Successfully deleted group' });
-  } catch (err) {
-    const message = err.message;
-    if (message === 'Group not found') {
-      return res.status(404).json({ error: message });
-    }
-    if (message.includes('Forbidden')) {
-      return res.status(403).json({ error: message });
-    }
-    res.status(400).json({ error: message });
-  }
-});
-
-app.listen(PORT, () => {
-  console.log(`StudyHub server running at http://localhost:${PORT}`);
-});
+function shutdown() {
+  server.close(() => pool.end().finally(() => process.exit(0)));
+}
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
