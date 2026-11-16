@@ -174,4 +174,18 @@ describe('Gemini client', () => {
     const nothing = createGeminiClient({ apiKey: 'k', model: 'm', fetchImpl: fakeFetch(200, null) });
     await assert.rejects(nothing.generate('x'), /empty answer/);
   });
+
+  test('AC-27 a provider that never answers is cut off by the timeout, and a network error is reported', async () => {
+    const hanging = (url, init) => new Promise((_, reject) => {
+      const keepAlive = setTimeout(() => {}, 1000);
+      init.signal.addEventListener('abort', () => {
+        clearTimeout(keepAlive);
+        reject(init.signal.reason);
+      });
+    });
+    const slow = createGeminiClient({ apiKey: 'k', model: 'm', timeoutMs: 20, fetchImpl: hanging });
+    await assert.rejects(slow.generate('x'), /no answer within 20 ms/);
+    const offline = createGeminiClient({ apiKey: 'k', model: 'm', fetchImpl: async () => { throw new TypeError('fetch failed'); } });
+    await assert.rejects(offline.generate('x'), /could not be reached: fetch failed/);
+  });
 });

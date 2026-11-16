@@ -27,7 +27,7 @@ StudyHub is an open study group platform for any type of learner (university stu
 - Model: gemini-2.5-flash-lite, through the Gemini API (`MODEL_NAME` can switch it).
 - Input: the session topic, the group category (university course, civil service exam, certification, language exam or other) and the session length in minutes. Nothing that identifies a user is sent.
 - Output: 3 to 6 consecutive blocks, each a short sub-topic with its minutes, shown as a markdown agenda that the member can edit before saving.
-- When it fails: with no key, an error, a timeout after 8 seconds or an answer that does not fit (not JSON, wrong number of blocks, minutes more than 20% off the session length) the app shows a notice and fills in a standard four-block template that adds up to the session length, which the member can edit.
+- When it fails: the app falls back to a template. With no key, an error, a timeout after 8 seconds or an answer that does not fit (not JSON, wrong number of blocks, minutes more than 20% off the session length) the app shows a notice and fills in a standard four-block template that adds up to the session length, which the member can edit.
 
 ## Auth
 - Local: email and password; passwords are hashed with Node's crypto scrypt and a 16-byte salt. Sessions are random tokens stored hashed in Postgres and sent as a signed, HttpOnly, SameSite=Lax cookie (Secure in production) that expires after 7 days.
@@ -160,7 +160,7 @@ Where this codebase does not match its own layering: `src/routes/auth.js` holds 
 | Profile | Browser | The token is shown once after a click and must never be cached in a page. | "Checking your token…". |
 
 ## Spec vs result
-- All 35 criteria are implemented and named in a test; `npm test` runs 78 tests with no failures, and the service layer is covered at 100% of lines and branches.
+- All 35 criteria are implemented and named in a test; `npm test` runs 79 tests with no failures, and the service layer is covered at 100% of lines and branches.
 - The first version of slice 2 answered 400 for a full group and kept a capacity check that two simultaneous joins could pass; I changed the spec to 409 (AC-11, AC-12) and the service now locks the group row in a transaction.
 - The first spec said the model failure shows an empty text area. I changed it (The model feature, AC-26, AC-27): an empty box gave members nothing to start from, so the fallback is now a standard template that adds up to the session length and is clearly labelled.
 - The MCP table first allowed anonymous calls to `list_study_groups`, while the website requires sign-in for the same list. I changed it so every project tool needs a token, which keeps one set of rules for both front doors.

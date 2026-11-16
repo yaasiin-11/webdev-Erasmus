@@ -5,15 +5,20 @@ export function createGeminiClient({ apiKey, model, timeoutMs = 8000, fetchImpl 
     name: model,
 
     async generate(prompt) {
-      const response = await fetchImpl(`${ENDPOINT}/${encodeURIComponent(model)}:generateContent`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-goog-api-key': apiKey },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: 'application/json', temperature: 0.4, maxOutputTokens: 800 },
-        }),
-        signal: AbortSignal.timeout(timeoutMs),
-      });
+      let response;
+      try {
+        response = await fetchImpl(`${ENDPOINT}/${encodeURIComponent(model)}:generateContent`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-goog-api-key': apiKey },
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            generationConfig: { responseMimeType: 'application/json', temperature: 0.4, maxOutputTokens: 800 },
+          }),
+          signal: AbortSignal.timeout(timeoutMs),
+        });
+      } catch (error) {
+        throw new Error(error.name === 'TimeoutError' ? `Gemini gave no answer within ${timeoutMs} ms` : `Gemini could not be reached: ${error.message}`);
+      }
       if (!response.ok) {
         throw new Error(`Gemini answered with status ${response.status}`);
       }
