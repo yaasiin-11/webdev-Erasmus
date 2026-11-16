@@ -5,10 +5,10 @@ export const PROTOCOL_VERSION = '2025-11-25';
 export const TOOLS = [
   {
     name: 'find_lecture',
-    description: 'Return the title and topics of one course lecture by its number, 1 to 12. Use it when asked what a lecture covers. Returns one line of text.',
+    description: 'Return the title and topics of one course lecture by its number, 1 to 10. Use it when asked what a lecture covers. Returns one line of text.',
     inputSchema: {
       type: 'object',
-      properties: { number: { type: 'integer', description: 'Lecture number, 1 to 12' } },
+      properties: { number: { type: 'integer', description: 'Lecture number, 1 to 10' } },
       required: ['number'],
     },
   },

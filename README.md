@@ -1,71 +1,77 @@
-# Web Development course · your workspace
+# StudyHub
 
-This repository is your workspace for the whole course: Exercise 1 in `mcp-server/`, and your project (Exercises 2–5) in the rest of it. Everything runs in your browser through GitHub Codespaces, so nothing needs to be installed on your laptop.
+StudyHub helps students and exam candidates find each other, form study groups and plan shared study sessions. A university course, a civil service exam, a certification or a language exam: you find the people preparing the same thing, take a place in their group, and everyone sees the group's timetable. When you plan a session, StudyHub can suggest an agenda with Gemini, and an AI agent can use the same rules through MCP.
 
-By the end you hand in one working application: a backend and a frontend over a real database, sign-in with a password **and** with a provider, a feature that uses a model, your own MCP server over the same data, a UI that holds up on a phone and a keyboard, and tests that trace to the criteria in your spec. The full target is on the course site under **Resources → The course project**, and the questions you will be asked about it are under **Resources → The defence**. Read both before you start Exercise 2.
+The specification, with every acceptance criterion and where it is tested, is in [SPEC.md](SPEC.md).
 
-## Start
-
-1. On the course template page, click **Use this template → Create a new repository**. Make it **public** and name it `webdev-<your faculty number>`.
-2. Your repository is public, so the lecturer and your Exercise 5 review partner can read it without an invitation. That also means **no keys, passwords or client secrets ever go into it**: put them in **Settings → Secrets and variables → Codespaces** instead, where the workspace picks them up as environment variables.
-3. Click **Code → Codespaces → Create codespace on main**. The first start takes a few minutes while the tools are installed.
-4. When the terminal shows `Workspace ready`, type `gemini` and follow the sign-in steps on the course setup page.
-5. Fill in `AGENTS.md` as you go, and add one entry to `AGENT_LOG.md` and `USAGE.md` after every agent session.
-
-The course setup page explains accounts, sign-in, free limits and what to do if something goes wrong.
-
-## What is already here
-
-| Path | What it is for |
-|---|---|
-| `.devcontainer/` | The workspace definition: Node 22, Python 3.12, SQLite, Docker, GitHub CLI, Gemini CLI |
-| `.gemini/settings.json` | Tells Gemini CLI to read `AGENTS.md`, and where it finds your MCP servers (Exercise 1) |
-| `.vscode/mcp.json` | The same for Copilot, if you use it (the key is `servers`) |
-| `.github/workflows/ci.yml` | Runs your tests, the coverage gate, the MCP conformance check and the spec check on every push |
-| `AGENTS.md` | Instructions your agent reads every session |
-| `SPEC.md` | Your project specification (Exercise 2) |
-| `AGENT_LOG.md`, `USAGE.md` | The logs you keep from Exercise 1 on |
-| `mcp-server/` | Exercise 1, with `lectures.json`, `messages.jsonl` and the self-check `check.mjs` |
-| `checks/` | One self-check per exercise: `node checks/ex2.mjs`, `ex3`, `ex4`, `ex5`, plus `project.mjs` before the defence |
-| `docs/UI.md` | The UI checklist your project is graded against (Exercise 4) |
-| `DEFENSE.md` | Your notes for the defence (Exercise 5) |
-| `.env.example` | Every environment variable your app needs, with placeholder values |
-| `course.json` | How to start your MCP server, and where your deployment answers |
-
-## Fill in `course.json` first
-
-Two facts about your copy that nobody can work out by reading the code:
-
-```json
-{
-  "mcp": "npm run mcp",
-  "liveUrl": "https://webdev-121220001.onrender.com"
-}
-```
-
-`mcp` is the command that starts your MCP server, which the Exercise 1 check runs, so
-add an `mcp` script to `package.json` and leave the default alone. `liveUrl` is filled
-in at Exercise 4. The self-checks read both.
-
-## Check yourself before you hand in
-
-Each exercise ships a self-check you run from the repository root:
+## Run it in one minute
 
 ```bash
-node mcp-server/check.mjs -- node mcp-server/server.js   # exercise 1
-node checks/ex2.mjs                                       # exercise 2
-node checks/ex3.mjs                                       # exercise 3
-node checks/ex4.mjs https://your-app.onrender.com         # exercise 4, URL optional
-node checks/ex5.mjs                                       # exercise 5
-node checks/project.mjs                                   # the night before the defence
+npm install
+cp .env.example .env
+npm start
 ```
 
-They check **structure**, not quality: they catch a missing section, an unwritten acceptance criterion or a fix committed without its test. Every check must pass before you hand in: an exercise that fails one comes back to you as incomplete. Passing them all is the minimum, not the point. What the work is worth is decided by the evidence you wrote down and by the defence at the end of the course, where you explain your own code.
+`.env.example` starts with `DATABASE_URL=memory`: an in-memory database filled with demo data, lost when the server stops. Open the forwarded port 3000 (Ports tab, globe icon) and sign in with one of the demo accounts:
 
-## Showing your work
+| Account | Password | What you see |
+|---|---|---|
+| `ana@studyhub.test` | `StudyHub2026!` | Created two groups and is a member of two more, with sessions this week |
+| `boris@studyhub.test` | `StudyHub2026!` | Creator of three groups, including the full "SQL and normalisation clinic" |
+| `carmen@studyhub.test` | `StudyHub2026!` | In no group yet: the empty states, and the "Full" button on the SQL clinic |
 
-When an exercise is done, commit and push, so your work is on GitHub and CI has run on it. Then ask the assistant to check your work in the room. They go through the exercise page's **What the assistant checks** list with you, at your codespace, and either accept the exercise or tell you exactly what is still missing.
+## With a real database
 
-## Save your free quota
+Put the Neon connection string in `.env` as `DATABASE_URL`, generate a `SESSION_SECRET` with `openssl rand -hex 32`, then:
 
-Stop the codespace when you finish (**Code → Codespaces → … → Stop codespace**) and delete codespaces you no longer need.
+```bash
+npm run migrate   # creates the tables
+npm run seed      # optional: the three demo accounts and their groups
+npm start
+```
+
+The server also applies pending migrations when it starts, and creates the demo data when `SEED_DEMO=true`.
+
+## Commands
+
+| Command | What it does |
+|---|---|
+| `npm start` | Starts the app on `PORT` (3000), reading `.env` if it exists |
+| `npm run dev` | The same, restarting when a file changes |
+| `npm test` | Runs every test with Node's built-in test runner, on an in-memory Postgres |
+| `npm run coverage` | Fails below 100% of lines, branches and functions in `src/services`, or below 80% of lines in `src` |
+| `npm run migrate` | Applies the numbered files in `migrations/` that have not run yet |
+| `npm run seed` | Creates the demo accounts if they are not there |
+| `npm run --silent mcp` | Starts the MCP server on stdio |
+
+## Configuration
+
+Every variable is listed, with where its value comes from, in [.env.example](.env.example). Only `DATABASE_URL` and `SESSION_SECRET` are required: the app stops at start with `missing <NAME>: see .env.example` when one is missing. Without the Google keys the Google button is hidden; without `GEMINI_API_KEY` the agenda suggestion offers a standard template.
+
+## How the code is organised
+
+```text
+src/
+  server.js          start-up: config, database, migrations, demo data, listen
+  app.js             Express app: security headers, /health, static files, /api
+  config.js          reads and checks the environment
+  routes/            HTTP only: read the request, call a service, send the result
+  services/          every rule: auth, groups, study sessions, agenda; no HTTP, no SQL
+  data/              every SQL query
+  integrations/      the two outside services: Gemini and Google OAuth
+  http/              cookies, middleware, the sign-in rate limit
+migrations/          numbered SQL files
+mcp-server/          the MCP server (stdio), using the same services
+public/              the browser app: index.html, css/app.css, js/ modules, fonts
+tests/               node:test files, named after the acceptance criteria
+```
+
+## Deployment
+
+The `Dockerfile` builds a production image that runs `node src/server.js` as a non-root user on port 3000, with a health check on `/health`. On Render, create a Docker web service from this repository, add the variables from `.env.example` (with a Neon `DATABASE_URL`), and set Auto-Deploy to "After CI Checks Pass". For Google sign-in, add `<your address>/api/auth/google/callback` as an authorized redirect URI.
+
+## Course files
+
+`AGENTS.md` holds the instructions for coding agents, `AGENT_LOG.md` and `USAGE.md` record every agent session, `checks/` holds the exercise self-checks (`node checks/ex2.mjs` to `ex5.mjs`), and `docs/UI.md` is the UI checklist.
+
+Fonts: Bricolage Grotesque and Atkinson Hyperlegible, both under the SIL Open Font License (see `public/fonts/`).
