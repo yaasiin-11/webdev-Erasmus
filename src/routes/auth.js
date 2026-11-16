@@ -50,7 +50,7 @@ export function authRoutes({ auth, config, google, limiter, log }) {
   });
 
   router.get('/providers', (req, res) => {
-    res.json({ google: Boolean(google) });
+    res.json({ google: Boolean(google), demo: config.seedDemo });
   });
 
   router.get('/google', (req, res) => {

@@ -1,44 +1,41 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>StudyHub - Study Groups</title>
-  <link rel="stylesheet" href="/style.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>StudyHub: study groups and shared study sessions</title>
+  <meta name="description" content="Find a study group, join it, and plan shared study sessions with an agenda.">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="/fonts/bricolage-grotesque-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/fonts/atkinson-hyperlegible-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/css/app.css">
+  <script type="module" src="/js/main.js"></script>
 </head>
 <body>
-  <header>
-    <h1>StudyHub</h1>
-    <div id="user-nav" class="hidden">
-      <span id="user-profile-name"></span>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="topbar" hidden>
+    <div class="topbar-inner">
+      <a class="wordmark" href="#/groups" aria-label="StudyHub, study groups">Study<span>Hub</span></a>
+      <nav class="mainnav" aria-label="Main">
+        <a href="#/groups" data-nav="groups">Groups</a>
+        <a href="#/sessions" data-nav="sessions">My sessions</a>
+        <a href="#/profile" data-nav="profile">Profile</a>
+      </nav>
+      <div class="whoami">
+        <span class="avatar" aria-hidden="true"></span>
+        <span class="whoami-name" data-user-name></span>
+        <button type="button" class="btn btn-quiet" data-action="sign-out">Sign out</button>
+      </div>
     </div>
   </header>
-
-  <main>
-    <!-- Sign-in View -->
-    <section id="auth-section">
-      <h2>Sign in to StudyHub</h2>
-      <form id="login-form">
-        <label>
-          Email address
-          <input type="email" id="email" name="email" required placeholder="student@example.com">
-        </label>
-        <label>
-          Password
-          <input type="password" id="password" name="password" required placeholder="••••••••">
-        </label>
-        <button type="submit">Sign in</button>
-        <div id="login-error" class="error-message hidden"></div>
-      </form>
-    </section>
-
-    <!-- Study Groups List View -->
-    <section id="groups-section" class="hidden">
-      <h2>Active Study Groups</h2>
-      <div id="groups-list"></div>
-    </section>
+  <main id="main" tabindex="-1">
+    <div class="boot" role="status">
+      <span class="spinner" aria-hidden="true"></span>
+      <span>Opening StudyHub…</span>
+    </div>
   </main>
-
-  <script src="/app.js"></script>
+  <div class="toasts" role="status" aria-live="polite" aria-atomic="true"></div>
+  <noscript><p class="noscript">StudyHub needs JavaScript to run in your browser.</p></noscript>
 </body>
 </html>

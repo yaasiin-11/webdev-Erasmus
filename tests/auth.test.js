@@ -167,7 +167,7 @@ describe('Google sign-in', () => {
     const google = fakeGoogle({ sub: 'g-flow', email: 'flow@gmail.com', emailVerified: true, name: 'Flow' });
     const api = await startServer(world, { google });
     try {
-      assert.deepEqual((await api.request('/api/auth/providers')).json, { google: true });
+      assert.deepEqual((await api.request('/api/auth/providers')).json, { google: true, demo: true });
       const { state, challenge, cookie } = await startFlow(api);
       assert.ok(state.length >= 16);
       assert.ok(challenge.length >= 43);
@@ -210,7 +210,7 @@ describe('Google sign-in', () => {
   test('AC-8 without Google configured the button is hidden and the routes say so', async () => {
     const api = await startServer(world);
     try {
-      assert.deepEqual((await api.request('/api/auth/providers')).json, { google: false });
+      assert.deepEqual((await api.request('/api/auth/providers')).json, { google: false, demo: true });
       assert.equal((await api.request('/api/auth/google')).status, 404);
       const callback = await api.request('/api/auth/google/callback?code=a&state=b');
       assert.equal(callback.headers.get('location'), '/#/login?error=google-off');
