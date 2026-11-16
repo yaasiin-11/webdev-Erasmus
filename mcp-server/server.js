@@ -31,8 +31,7 @@ async function getServices() {
 
 const handle = createMcpHandler({ lectures, getServices, token: process.env.MCP_TOKEN, log });
 
-const lines = readline.createInterface({ input: process.stdin });
-lines.on('line', async (line) => {
+async function answer(line) {
   if (!line.trim()) return;
   log(`got: ${line}`);
   let message;
@@ -44,7 +43,15 @@ lines.on('line', async (line) => {
   }
   const reply = await handle(message);
   if (reply) process.stdout.write(`${JSON.stringify(reply)}\n`);
+}
+
+let queue = Promise.resolve();
+const lines = readline.createInterface({ input: process.stdin });
+lines.on('line', (line) => {
+  queue = queue.then(() => answer(line)).catch((error) => log(error.stack));
 });
-lines.on('close', async () => {
-  if (container) await (await container).pool.end();
+lines.on('close', () => {
+  queue.then(async () => {
+    if (container) await (await container).pool.end();
+  }).catch(() => {});
 });

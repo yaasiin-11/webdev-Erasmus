@@ -1,0 +1,14 @@
+.git
+.github
+.devcontainer
+.gemini
+.vscode
+node_modules
+coverage
+tests
+checks
+docs
+*.md
+.env
+.env.*
+!.env.example
