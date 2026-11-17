@@ -117,6 +117,10 @@ StudyHub is an open study group platform for any type of learner (university stu
 - [AC-45] Under every upcoming session a member clicks "Going" or "Can't go"; the session shows how many are going and their names, the person who scheduled it counts as going, and clicking the chosen answer again removes it.
 - [AC-46] Only members of the group can answer for a session (403), the answer must be "going" or "not_going" (422), a session that is over cannot be answered (422), and cancelling a session removes its answers.
 
+### Slice 10: hardening found in my own review
+- [AC-47] The place of a session (often a meeting link) is shown only to members of its group: on the group page, in "My sessions" and through MCP, a non-member sees that the place is shared with members only.
+- [AC-48] More than 20 agenda suggestions per user per hour, 10 new accounts per address per hour or 30 chat messages per user per minute answer 429 with a sentence saying when to try again.
+
 ## Traceability
 | Criterion | Test |
 | --- | --- |
@@ -166,6 +170,8 @@ StudyHub is an open study group platform for any type of learner (university stu
 | AC-44 | tests/chat.test.js |
 | AC-45 | tests/sessions.test.js |
 | AC-46 | tests/sessions.test.js |
+| AC-47 | tests/sessions.test.js |
+| AC-48 | tests/sessions.test.js |
 
 ## Architecture
 One request, `POST /api/groups/:id/membership` (join a group), through every layer:
@@ -191,11 +197,12 @@ Where this codebase does not match its own layering: `src/routes/auth.js` holds 
 | Profile | Browser | The token is shown once after a click and must never be cached in a page. | "Checking your token…". |
 
 ## Spec vs result
-- All 46 criteria are implemented and named in a test; `npm test` runs 105 tests with no failures, and the service layer is covered at 100% of lines and branches.
+- All 48 criteria are implemented and named in a test; `npm test` runs 107 tests with no failures, and the service layer is covered at 100% of lines and branches.
 - The first version of slice 2 answered 400 for a full group and kept a capacity check that two simultaneous joins could pass; I changed the spec to 409 (AC-11, AC-12) and the service now locks the group row in a transaction.
 - The first spec said the model failure shows an empty text area. I changed it (The model feature, AC-26, AC-27): an empty box gave members nothing to start from, so the fallback is now a standard template that adds up to the session length and is clearly labelled.
 - The MCP table first allowed anonymous calls to `list_study_groups`, while the website requires sign-in for the same list. I changed it so every project tool needs a token, which keeps one set of rules for both front doors.
 - The first agenda suggestion numbered its blocks from 00:00 whatever the start time; testing it in the browser showed the problem, and AC-25 now says the times begin at the session start.
 - Chat and password reset were non-goals at first. After using the app I moved them into scope (slices 7 and 8) and narrowed the non-goals: no file sharing, and no email except the reset link.
 - Slice 9 came from using the chat: without reactions every "ok" became a message, and the organiser had no way to know who would come to a session. An invite link opens the group after sign-in, which is checked by hand because it lives only in the browser.
+- Slice 10 came from reviewing my own project the way Exercise 5 will: any signed-in user could read the meeting links of every group, and nothing stopped one account from calling the model hundreds of times.
 - Not covered by automated tests: the look of the four states and keyboard use in a real browser; those are checked by hand in `docs/UI.md`.

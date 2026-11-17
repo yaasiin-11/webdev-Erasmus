@@ -51,7 +51,7 @@ export function createGroupService({ repos, now }) {
     return {
       ...toGroupDto(row, viewerId),
       members: members.map((m) => ({ id: m.id, name: m.name, joinedAt: new Date(m.joined_at).toISOString() })),
-      sessions: upcoming(sessions, now()).map((s) => toSessionDto(s, viewerId, rsvps)),
+      sessions: upcoming(sessions, now()).map((s) => toSessionDto(s, viewerId, rsvps, { member: Boolean(row.is_member) })),
     };
   }
 

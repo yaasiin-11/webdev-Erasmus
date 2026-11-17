@@ -77,7 +77,7 @@ function describeGroup(group) {
 }
 
 function describeSession(session) {
-  const place = session.location ? ` at ${session.location}` : '';
+  const place = session.location ? ` at ${session.location}` : session.locationHidden ? ' (place shown to members only)' : '';
   const agenda = session.agenda ? `\n  ${session.agenda.split('\n').join('\n  ')}` : '';
   return `#${session.id} ${session.topic}: ${when(session.startsAt)} to ${when(session.endsAt)}${place}, by ${session.createdBy.name}, ${session.attendance.going} going${agenda}`;
 }

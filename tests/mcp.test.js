@@ -99,9 +99,10 @@ describe('MCP server', () => {
   test('AC-31 get_group_schedule lists upcoming sessions with their agenda, and says when there are none', async () => {
     const handle = handlerFor(carmenToken);
     const schedule = textOf(await handle(call(1, 'get_group_schedule', { groupId: algebra.id })));
-    assert.match(schedule, /^Upcoming sessions of Linear algebra:\n#\d+ Eigenvalues: 2030-03-05 09:00 UTC to 2030-03-05 10:00 UTC at Room 4, by Ana Petrova, 1 going\n  - warm-up\n  - proofs/);
+    assert.match(schedule, /^Upcoming sessions of Linear algebra:\n#\d+ Eigenvalues: 2030-03-05 09:00 UTC to 2030-03-05 10:00 UTC \(place shown to members only\), by Ana Petrova, 1 going\n  - warm-up\n  - proofs/);
     const spanish = (await world.services.groups.listGroups(world.users.carmen.id, { category: 'languages' }))[0];
     assert.equal(textOf(await handle(call(2, 'get_group_schedule', { groupId: spanish.id }))), 'Spanish C1 has no upcoming sessions.');
+    assert.match(textOf(await handlerFor(anaToken)(call(4, 'get_group_schedule', { groupId: algebra.id }))), /UTC at Room 4, by Ana Petrova/, 'AC-47 a member sees the place');
     const missing = await handle(call(3, 'get_group_schedule', { groupId: 424242 }));
     assert.equal(missing.result.isError, true);
     assert.equal(textOf(missing), 'This study group does not exist.');

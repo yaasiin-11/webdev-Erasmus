@@ -238,3 +238,67 @@ describe('answering for a session', () => {
     assert.equal(await world.repos.studySessions.findRsvp(extra.id, world.users.ana.id), null);
   });
 });
+
+describe('who can see where a group meets', () => {
+  test('AC-47 the place of a session, often a meeting link, is shown only to members of the group', async () => {
+    const world = await makeWorld();
+    const group = await world.group('ana');
+    await world.services.studySessions.scheduleSession(world.users.ana.id, group.id, {
+      topic: 'Private call', startsAt: hoursFromStart(5), durationMinutes: 60, location: 'https://meet.example.org/secret-room',
+    });
+    await world.services.studySessions.scheduleSession(world.users.ana.id, group.id, {
+      topic: 'No place yet', startsAt: hoursFromStart(50), durationMinutes: 60,
+    });
+
+    const outsider = await world.services.groups.getGroup(world.users.carmen.id, group.id);
+    assert.equal(outsider.sessions[0].location, '');
+    assert.equal(outsider.sessions[0].locationHidden, true);
+    assert.equal(outsider.sessions[1].locationHidden, false);
+    const viaSchedule = await world.services.studySessions.groupSchedule(world.users.carmen.id, group.id);
+    assert.equal(viaSchedule.sessions[0].location, '');
+
+    const member = await world.services.groups.getGroup(world.users.ana.id, group.id);
+    assert.equal(member.sessions[0].location, 'https://meet.example.org/secret-room');
+    assert.equal(member.sessions[0].locationHidden, false);
+
+    await world.services.groups.joinGroup(world.users.carmen.id, group.id);
+    const joined = await world.services.studySessions.groupSchedule(world.users.carmen.id, group.id);
+    assert.equal(joined.sessions[0].location, 'https://meet.example.org/secret-room');
+  });
+});
+
+describe('request limits', () => {
+  test('AC-48 the agenda suggestion, new accounts and chat messages are limited, so one person cannot run up the model bill or flood a group', async () => {
+    const { createAttemptLimiter } = await import('../src/http/rateLimit.js');
+    const world = await makeWorld();
+    const group = await world.group('ana');
+    const limits = {
+      login: createAttemptLimiter(),
+      register: createAttemptLimiter({ limit: 2 }),
+      agenda: createAttemptLimiter({ limit: 2 }),
+      chat: createAttemptLimiter({ limit: 2 }),
+    };
+    const api = await startServer(world, { limits });
+    try {
+      const ana = await api.login('ana@test.dev');
+      const agenda = () => api.request('/api/agenda', { method: 'POST', cookie: ana, body: { topic: 'Limits', category: 'other', durationMinutes: 30 } });
+      assert.equal((await agenda()).status, 200);
+      assert.equal((await agenda()).status, 200);
+      const third = await agenda();
+      assert.equal(third.status, 429);
+      assert.match(third.json.error, /20 agenda suggestions/);
+
+      const say = () => api.request(`/api/groups/${group.id}/messages`, { method: 'POST', cookie: ana, body: { body: 'hi' } });
+      assert.equal((await say()).status, 201);
+      assert.equal((await say()).status, 201);
+      assert.equal((await say()).status, 429);
+
+      const register = (n) => api.request('/api/auth/register', { method: 'POST', body: { name: 'Spam', email: `spam${n}@test.dev`, password: 'long-enough' } });
+      assert.equal((await register(1)).status, 201);
+      assert.equal((await register(2)).status, 201);
+      assert.equal((await register(3)).status, 429);
+    } finally {
+      await api.close();
+    }
+  });
+});

@@ -24,7 +24,7 @@ export function attendance(sessionId, rsvps, viewerId) {
   };
 }
 
-export function toSessionDto(row, viewerId, rsvps = []) {
+export function toSessionDto(row, viewerId, rsvps = [], { member = true } = {}) {
   return {
     id: row.id,
     groupId: row.group_id,
@@ -33,7 +33,8 @@ export function toSessionDto(row, viewerId, rsvps = []) {
     startsAt: new Date(row.starts_at).toISOString(),
     endsAt: endOf(row).toISOString(),
     durationMinutes: row.duration_minutes,
-    location: row.location,
+    location: member ? row.location : '',
+    locationHidden: !member && row.location !== '',
     agenda: row.agenda,
     agendaSource: row.agenda_source,
     createdBy: { id: row.created_by, name: row.created_by_name },
@@ -150,7 +151,7 @@ export function createStudySessionService({ repos, groups, now }) {
     ]);
     return {
       group: { id: group.id, title: group.title },
-      sessions: upcoming(rows, now()).map((row) => toSessionDto(row, viewerId, rsvps)),
+      sessions: upcoming(rows, now()).map((row) => toSessionDto(row, viewerId, rsvps, { member: group.is_member })),
     };
   }
 

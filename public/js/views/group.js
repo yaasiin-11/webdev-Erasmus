@@ -71,7 +71,9 @@ function rsvpRow(session, canAnswer, onAnswered) {
 }
 
 export function sessionSlot(session, { showGroup = false, onChanged, canAnswer = true } = {}) {
-  const place = session.location
+  const place = session.locationHidden
+    ? h('span', { text: 'Join the group to see where it meets' })
+    : session.location
     ? (isLink(session.location)
         ? h('a', { href: session.location, rel: 'noopener noreferrer', target: '_blank', text: session.location })
         : h('span', { text: session.location }))
