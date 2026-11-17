@@ -1,7 +1,8 @@
 import express from 'express';
 import { asyncRoute, requireUser } from '../http/middleware.js';
+import { limitRequests } from '../http/rateLimit.js';
 
-export function groupRoutes({ groups, studySessions, chat }) {
+export function groupRoutes({ groups, studySessions, chat, chatLimiter }) {
   const router = express.Router();
   router.use(requireUser);
 
@@ -39,7 +40,9 @@ export function groupRoutes({ groups, studySessions, chat }) {
     res.json({ messages: await chat.listMessages(req.user.id, req.params.id, { after: req.query.after }) });
   }));
 
-  router.post('/:id/messages', asyncRoute(async (req, res) => {
+  const chatLimit = limitRequests(chatLimiter, (req) => req.user.id, 'You are sending messages too fast. Wait a minute and try again.');
+
+  router.post('/:id/messages', chatLimit, asyncRoute(async (req, res) => {
     res.status(201).json({ message: await chat.postMessage(req.user.id, req.params.id, req.body ?? {}) });
   }));
 

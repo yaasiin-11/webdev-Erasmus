@@ -49,9 +49,9 @@ export async function makeWorld({ modelClient = null } = {}) {
 
 export const silentLog = { info() {}, error() {} };
 
-export async function startServer(world, { env = {}, google = null, limiter, mailer, services = world.services, repos = world.repos } = {}) {
+export async function startServer(world, { env = {}, google = null, limits, mailer, services = world.services, repos = world.repos } = {}) {
   const config = loadConfig({ DATABASE_URL: 'memory', SESSION_SECRET: 'test-secret-test-secret', ...env });
-  const app = createApp({ config, services, repos, google, limiter, mailer, log: silentLog });
+  const app = createApp({ config, services, repos, google, limits, mailer, log: silentLog });
   const server = await new Promise((resolve) => {
     const s = app.listen(0, () => resolve(s));
   });

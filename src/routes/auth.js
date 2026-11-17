@@ -4,11 +4,12 @@ import { AuthenticationError, RateLimitError } from '../services/errors.js';
 import { asyncRoute, requireUser } from '../http/middleware.js';
 import { OAUTH_COOKIE, SESSION_COOKIE, cookieOptions, parseCookies, sign, unsign } from '../http/cookies.js';
 import { createPkcePair } from '../integrations/google.js';
+import { limitRequests } from '../http/rateLimit.js';
 import { passwordResetEmail } from '../emails.js';
 
 const OAUTH_MAX_AGE = 10 * 60 * 1000;
 
-export function authRoutes({ auth, config, google, limiter, mailer, log }) {
+export function authRoutes({ auth, config, google, limiter, registerLimiter, mailer, log }) {
   const router = express.Router();
 
   async function startSession(res, user) {
@@ -16,7 +17,13 @@ export function authRoutes({ auth, config, google, limiter, mailer, log }) {
     res.cookie(SESSION_COOKIE, sign(token, config.sessionSecret), cookieOptions(config, expiresAt - Date.now()));
   }
 
-  router.post('/register', asyncRoute(async (req, res) => {
+  const registerLimit = limitRequests(
+    registerLimiter,
+    (req) => req.ip,
+    'Too many accounts were created from this address. Try again in an hour.',
+  );
+
+  router.post('/register', registerLimit, asyncRoute(async (req, res) => {
     const user = await auth.register(req.body ?? {});
     await startSession(res, user);
     res.status(201).json({ user });
