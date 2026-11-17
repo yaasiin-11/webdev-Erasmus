@@ -18,8 +18,8 @@ function field({ id, label, type = 'text', autocomplete, hint, minlength }) {
 }
 
 function story() {
-  const row = (time, title, taken, total) => h('li', {},
-    h('time', { text: time }),
+  const row = (day, time, title, taken, total) => h('li', {},
+    h('time', {}, h('span', { text: day }), h('span', { text: time })),
     h('span', { text: title }),
     h('span', { class: 'seats', 'aria-hidden': 'true' },
       Array.from({ length: total }, (_, i) => h('i', { class: i < taken ? '' : 'free' }))),
@@ -31,9 +31,9 @@ function story() {
       h('p', { text: 'Find people preparing the same course, civil service exam or certification. Join their group, book a time, and walk in with a plan for the session.' }),
     ),
     h('ul', { class: 'timetable-strip', 'aria-label': 'Example of a week in StudyHub' },
-      row('Mon 17:00', 'Calculus II, double integrals', 4, 6),
-      row('Wed 18:00', 'Constitutional bodies quiz', 6, 8),
-      row('Sat 10:30', 'AWS practice exam', 2, 4),
+      row('Mon', '17:00', 'Calculus II, double integrals', 4, 6),
+      row('Wed', '18:00', 'Constitutional bodies quiz', 6, 8),
+      row('Sat', '10:30', 'AWS practice exam', 2, 4),
     ),
   );
 }

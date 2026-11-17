@@ -145,3 +145,11 @@ Changed in review:
 - Went wrong: on touch screens the "+" for reactions sat under every message and cluttered the chat; it now appears on the message you tap. The browser script read the groups list while the skeleton rows were still showing (they share the `ledger` class), which looked like a missing unread count; the API itself was right.
 - Changed in review: SPEC.md has slice 9 (AC-43 to AC-46); the invite link has no criterion because it only exists in the browser.
 - Changed by hand: nothing yet.
+
+## 2026-11-17 · Self-review, deployment files and UI evidence (Claude coding agent)
+- Goal: do everything left that does not need my accounts or my own writing: review the project the way Exercise 5 will, prepare the Render deployment, a script that gathers READINESS evidence, and screenshots for docs/UI.md.
+- Autonomy: the agent reviewed, fixed with tests and committed; it did not tick docs/UI.md, write READINESS.md, DEFENSE.md or REVIEW.md, and touched no account or secret.
+- Findings of the self-review and what was done: (1) any signed-in user could read the meeting links of every group: the place is now shown to members only (AC-47); (2) one account could call the model without limit, create unlimited accounts or flood a chat: limits of 20 suggestions per hour, 10 accounts per address per hour and 30 messages per minute (AC-48); (3) every write route checked: all need a session and the services check ownership, already tested; (4) `npm audit`: 0 vulnerabilities. Left as known gaps: registration tells whether an email already has an account (409), and the rate limits live in memory, so they reset on restart and would not be shared between two instances.
+- Added: `render.yaml` (Docker, Frankfurt, free plan, health check on /health, auto-deploy after CI passes, secrets asked at creation), `npm run readiness -- <url>` (`tools/readiness-check.mjs`), and screenshots in `docs/ui/`: the four states of the groups screen, the agenda suggestion thinking and falling back, 380 and 768 pixels, dark mode and keyboard focus.
+- Checkpoints: 107 tests, coverage gates, self-checks 2 and 3, the readiness script against a local server.
+- Changed by hand: to do: tick docs/UI.md myself, using the screenshots and my own checks on the live site.

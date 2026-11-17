@@ -564,6 +564,8 @@ textarea[aria-invalid='true'] {
 }
 
 .timetable-strip time {
+  display: grid;
+  line-height: 1.2;
   font-family: var(--font-display);
   font-weight: 700;
   font-size: var(--step-0);
