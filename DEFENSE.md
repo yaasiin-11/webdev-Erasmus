@@ -1,6 +1,6 @@
 # Defence notes
 
-I have mixed claude with gemini in order to give the structure with gemini and a modern look with claude.
+Built by leveraging the combined strengths of Claude and Gemini, StudyHub transforms how university students organize their coursework and collaborate in one unified environment. Beyond offering intuitive study tools, the platform prioritizes data integrity and seamless user management—securing every account with hashed passwords and connecting directly to Brevo to handle automated data exports and instant password-reset emails.
 
 ## What it does
 
