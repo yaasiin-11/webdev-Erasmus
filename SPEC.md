@@ -25,9 +25,16 @@ StudyHub is an open study group platform for any type of learner (university stu
 
 ## The model feature
 - Model: gemini-2.5-flash-lite, through the Gemini API (`MODEL_NAME` can switch it).
+- Why this model: it is the provider the course recommends, its free tier is enough for a student project, and the task is small (a short JSON agenda from a topic and a length), so the fast "lite" model is enough; a larger model would be slower and use the shared quota for no visible gain. I already knew Gemini from using Gemini CLI in Exercises 1 and 2.
 - Input: the session topic, the group category (university course, civil service exam, certification, language exam or other) and the session length in minutes. Nothing that identifies a user is sent.
 - Output: 3 to 6 consecutive blocks, each a short sub-topic with its minutes, shown as a markdown agenda that the member can edit before saving.
 - When it fails: the app falls back to a template. With no key, an error, a timeout after 8 seconds or an answer that does not fit (not JSON, wrong number of blocks, minutes more than 20% off the session length) the app shows a notice and fills in a standard four-block template that adds up to the session length, which the member can edit.
+
+## Data that leaves the app
+- Gemini (Google), for the agenda suggestion: the session topic, the group category and the length in minutes. No name, email, user id or member list is sent (AC-28). The topic is free text, so whatever a user types into it leaves too. The API key goes in a header, not in the URL.
+- Brevo, for the forgotten-password email: the user's email address, their name, and the email text with the single-use reset link. Only when the user asks for a reset. Without Brevo configured nothing is sent: in development the email is printed in the server log, in production it is not sent at all.
+- Google sign-in: nothing about the user is sent to Google; Google sends back the email, whether it is verified, and the name.
+- Nothing else leaves the app: no analytics and no third-party scripts in the pages. In production the server logs hold no passwords, no reset links and no model answers; only in development, with no Brevo key, the reset email (with its link) is printed in the log on purpose.
 
 ## Auth
 - Local: email and password; passwords are hashed with Node's crypto scrypt and a 16-byte salt. Sessions are random tokens stored hashed in Postgres and sent as a signed, HttpOnly, SameSite=Lax cookie (Secure in production) that expires after 7 days.
