@@ -1348,6 +1348,14 @@ textarea[aria-invalid='true'] {
   cursor: pointer;
 }
 
+/* the button is drawn 4px smaller so it fits inside the textarea border,
+   but the area you can tap is still the full --tap size */
+.chat-tool::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+}
+
 .chat-tool:hover {
   background: var(--paper);
 }
