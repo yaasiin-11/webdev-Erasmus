@@ -1,10 +1,6 @@
 # Defence notes
 
-<!-- Exercise 5 writes this, before the defence, while the project is fresh.
-     These are your own answers, in your own words. The question bank is on the course
-     site under Resources → The defence. The committee will not ask whether an agent
-     wrote the code; everyone in the room knows it did, and the course required it.
-     It will ask whether the system is yours. -->
+I have mixed claude with gemini in order to give the structure with gemini and a modern look with claude.
 
 ## What it does
 
