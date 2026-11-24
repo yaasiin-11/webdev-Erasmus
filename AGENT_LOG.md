@@ -168,3 +168,10 @@ Changed in review:
 - Checkpoints: 107 tests pass, coverage 100% lines on services and 97% branches overall, `node checks/ex2.mjs` 32/32, `node checks/ex3.mjs` 18/18, `/health` on the live site answers ok.
 - Went wrong: the first draft said the server logs never hold reset links; in development they do (no Brevo key prints the email), so SPEC.md now says so.
 - Changed by hand: to do: confirm the "Why this model" reasons in SPEC.md are mine, read the rebuild diff, write DEFENSE.md, do Exercise 5 with my partner.
+
+## 2026-11-24 · MCP token page removed from the website (Claude in claude.ai)
+- Goal: I did not want the "Agent access (MCP)" panel in the website. The MCP server must keep working with one user's token (requirements 17 to 20), so the token now comes from the terminal.
+- Autonomy: the agent removed the panel from `public/js/views/profile.js`, the `/api/me/mcp-token` routes and their unused CSS, added `npm run mcp:token -- <email> [--revoke]` (`src/scripts/mcp-token.js`), rewrote the AC-32 test against the service (plus a check that the old route answers 404), and updated SPEC.md, AGENTS.md, README.md, READINESS.md, mcp-server/README.md and .env.example. The service functions and the token table did not change.
+- Checkpoints: 107 tests pass, coverage gates pass (services 100%), `node checks/ex2.mjs` 32/32, `node checks/ex3.mjs` 18/18, MCP self-check 12/12.
+- Decision: only someone with the database URL can create a token now, which is narrower than any signed-in user. The token I had created on the old page was shown in a screenshot, so I revoke it and create a new one with the command.
+- Changed by hand: to do: run `npm run mcp:token -- <my email>` against Neon, put the token in the MCP_TOKEN codespace secret, and check `/mcp` lists the StudyHub tools.

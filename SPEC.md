@@ -57,7 +57,7 @@ StudyHub is an open study group platform for any type of learner (university stu
   - Group page with the upcoming sessions timetable and "Going / Can't go" answers, the group chat with emoji picker and reactions, a "Copy invite link" button, the members, the planning form with the agenda suggestion, and delete for the creator.
   - Forgot password and choose a new password screens.
   - My sessions: every upcoming session of my groups, grouped by day.
-  - Profile with the MCP token for agents.
+  - Profile with the account name and email.
 
 ## Acceptance criteria
 ### Slice 1: sign-in and the study groups list
@@ -100,7 +100,7 @@ StudyHub is an open study group platform for any type of learner (university stu
 - [AC-29] `list_study_groups` called with a category returns the same groups as the website filter for the token's user.
 - [AC-30] `create_study_session` called with the token of a group member creates the session through the same service as the website; with the token of a non-member it returns a tool error saying only members can schedule; with no or a revoked token it returns a tool error asking for a valid token.
 - [AC-31] `get_group_schedule` returns the upcoming sessions of a group with time, place and agenda, and a group that does not exist is a tool error.
-- [AC-32] On the profile page a user clicks "Create token" and sees the token once; only its hash is stored, and creating a new token or clicking "Revoke token" makes the old one stop working.
+- [AC-32] A user's MCP token is created from the terminal with `npm run mcp:token -- <email>` and printed once; only its hash is stored, creating a new token or running it with `--revoke` makes the old one stop working, and the website has no page or API route for tokens.
 
 ### Slice 6: running in production
 - [AC-33] `GET /health` answers 200 `{"status":"ok","db":"ok"}` when the database answers and 503 `{"status":"error","db":"down"}` when it does not.

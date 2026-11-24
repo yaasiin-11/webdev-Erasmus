@@ -14,6 +14,7 @@ StudyHub is a collaborative platform designed for university students, civil ser
 - Migrate: npm run migrate
 - Seed demo data: npm run seed
 - MCP server: npm run --silent mcp
+- MCP token for one user: npm run mcp:token -- <email> (add --revoke to cut access); there is no token page in the website
 
 ## Conventions
 <!-- Folder layout, naming, where business rules live, how errors are returned to the client. -->
@@ -47,7 +48,7 @@ that talks to the database directly is a second, unguarded way into your data: n
 ## The MCP server
 <!-- Where it lives and how it authenticates. -->
 - Lives in `mcp-server/`, grew out of Exercise 1: `server.js` is the stdio loop, `tools.js` the tools.
-- It reads `MCP_TOKEN` (created on the profile page, stored hashed) and resolves it with `auth.userForMcpToken`.
+- It reads `MCP_TOKEN` (created with `npm run mcp:token -- <email>`, stored hashed; the website has no token page) and resolves it with `auth.userForMcpToken`.
 - Every tool calls a service function; none touches the data layer or the database directly.
 - It carries a user, and enforces exactly the same authorization rules as the HTTP API.
 - Adding a tool means adding a row to the table in `SPEC.md` too.

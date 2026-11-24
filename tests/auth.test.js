@@ -255,33 +255,34 @@ describe('brute force protection', () => {
 });
 
 describe('MCP tokens', () => {
-  test('AC-32 a token is shown once, stored only as a hash, and a new one revokes the old one', async () => {
+  test('AC-32 a token is created from the terminal, stored only as a hash, a new one revokes the old one, and the website offers no token page', async () => {
     const world = await makeWorld();
     const api = await startServer(world);
     try {
-      const cookie = await api.login('ana@test.dev');
-      assert.equal((await api.request('/api/me/mcp-token', { cookie })).json.token, null);
+      const { auth } = world.services;
+      const ana = world.users.ana.id;
+      assert.equal(await auth.mcpTokenInfo(ana), null);
 
-      const first = await api.request('/api/me/mcp-token', { method: 'POST', cookie });
-      assert.equal(first.status, 201);
-      assert.match(first.json.token, /^shmcp_/);
+      const first = await auth.issueMcpToken(ana);
+      assert.match(first, /^shmcp_/);
       const { rows } = await world.pool.query('SELECT token_hash FROM mcp_tokens');
       assert.equal(rows.length, 1);
-      assert.notEqual(rows[0].token_hash, first.json.token);
+      assert.notEqual(rows[0].token_hash, first);
 
-      const user = await world.services.auth.userForMcpToken(first.json.token);
-      assert.equal(user.id, world.users.ana.id);
-      const info = (await api.request('/api/me/mcp-token', { cookie })).json.token;
+      assert.equal((await auth.userForMcpToken(first)).id, ana);
+      const info = await auth.mcpTokenInfo(ana);
       assert.ok(info.createdAt && info.lastUsedAt);
 
-      const second = await api.request('/api/me/mcp-token', { method: 'POST', cookie });
-      await assert.rejects(world.services.auth.userForMcpToken(first.json.token), /not valid any more/);
-      assert.equal((await world.services.auth.userForMcpToken(second.json.token)).id, world.users.ana.id);
+      const second = await auth.issueMcpToken(ana);
+      await assert.rejects(auth.userForMcpToken(first), /not valid any more/);
+      assert.equal((await auth.userForMcpToken(second)).id, ana);
 
-      assert.equal((await api.request('/api/me/mcp-token', { method: 'DELETE', cookie })).status, 204);
-      await assert.rejects(world.services.auth.userForMcpToken(second.json.token), AuthenticationError);
-      await assert.rejects(world.services.auth.userForMcpToken(undefined), /needs a valid MCP_TOKEN/);
-      assert.equal((await api.request('/api/me/mcp-token', { method: 'POST' })).status, 401);
+      await auth.revokeMcpToken(ana);
+      await assert.rejects(auth.userForMcpToken(second), AuthenticationError);
+      await assert.rejects(auth.userForMcpToken(undefined), /needs a valid MCP_TOKEN/);
+
+      const cookie = await api.login('ana@test.dev');
+      assert.equal((await api.request('/api/me/mcp-token', { method: 'POST', cookie })).status, 404);
     } finally {
       await api.close();
     }

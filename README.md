@@ -45,6 +45,7 @@ The server also applies pending migrations when it starts, and creates the demo 
 | `npm run migrate` | Applies the numbered files in `migrations/` that have not run yet |
 | `npm run seed` | Creates the demo accounts if they are not there |
 | `npm run --silent mcp` | Starts the MCP server on stdio |
+| `npm run mcp:token -- <email>` | Prints a new MCP token for that user (`--revoke` cuts access) |
 
 ## Configuration
 

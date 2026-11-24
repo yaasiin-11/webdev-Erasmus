@@ -43,7 +43,7 @@ It prints one line per check. Fix the failures yourself: the agent may explain a
 npm run --silent mcp
 ```
 
-`find_lecture` and `list_lectures` work on their own. The three StudyHub tools also need two variables, in `.env` or in the environment: `DATABASE_URL` pointing at the same Postgres database as the app, and `MCP_TOKEN`, created on the app's profile page. The server acts as the user who owns that token.
+`find_lecture` and `list_lectures` work on their own. The three StudyHub tools also need two variables, in `.env` or in the environment: `DATABASE_URL` pointing at the same Postgres database as the app, and `MCP_TOKEN`, created with `npm run mcp:token -- <your email>`. The server acts as the user who owns that token.
 
 ## Session transcript
 <!-- Paste one full session: initialize, the reply, tools/list, one good tools/call, one that fails. -->

@@ -2,7 +2,7 @@ import express from 'express';
 import { fileURLToPath } from 'node:url';
 import { authRoutes } from './routes/auth.js';
 import { groupRoutes, messageRoutes, sessionRoutes } from './routes/groups.js';
-import { agendaRoutes, meRoutes } from './routes/me.js';
+import { agendaRoutes } from './routes/me.js';
 import { apiNotFound, attachUser, errorHandler, sameOriginWrites, securityHeaders } from './http/middleware.js';
 import { createLimits } from './http/rateLimit.js';
 import { createConsoleMailer } from './integrations/mailer.js';
@@ -45,7 +45,6 @@ export function createApp({
   api.use('/sessions', sessionRoutes(services));
   api.use('/messages', messageRoutes(services));
   api.use('/agenda', agendaRoutes({ ...services, agendaLimiter: limits.agenda }));
-  api.use('/me', meRoutes(services));
   api.use(apiNotFound);
   app.use('/api', api);
 

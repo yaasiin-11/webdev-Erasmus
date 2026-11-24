@@ -128,12 +128,12 @@ export function createAuthService({ repos, now }) {
 
   async function userForMcpToken(token) {
     if (typeof token !== 'string' || !token.startsWith(MCP_TOKEN_PREFIX)) {
-      throw new AuthenticationError('This tool needs a valid MCP_TOKEN. Create one on your StudyHub profile page.', 'NoToken');
+      throw new AuthenticationError('This tool needs a valid MCP_TOKEN. Create one with npm run mcp:token -- <your email>.', 'NoToken');
     }
     const hash = sha256(token);
     const user = await repos.mcpTokens.findUser(hash);
     if (!user) {
-      throw new AuthenticationError('This MCP token is not valid any more. Create a new one on your profile page.', 'BadToken');
+      throw new AuthenticationError('This MCP token is not valid any more. Create a new one with npm run mcp:token -- <your email>.', 'BadToken');
     }
     await repos.mcpTokens.touch(hash, now());
     return user;

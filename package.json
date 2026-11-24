@@ -12,6 +12,7 @@
     "test": "node --test",
     "coverage": "node --test --experimental-test-coverage --test-coverage-include='src/services/**' --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100 && node --test --experimental-test-coverage --test-coverage-include='src/**' --test-coverage-exclude='src/server.js' --test-coverage-exclude='src/scripts/**' --test-coverage-lines=80",
     "mcp": "node mcp-server/server.js",
+    "mcp:token": "node --env-file-if-exists=.env src/scripts/mcp-token.js",
     "readiness": "node tools/readiness-check.mjs"
   },
   "dependencies": {

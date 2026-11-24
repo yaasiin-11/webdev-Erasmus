@@ -1634,24 +1634,6 @@ details.agenda summary {
   align-items: start;
 }
 
-.token-box {
-  display: flex;
-  gap: var(--space-2);
-}
-
-.token-box input {
-  font-family: ui-monospace, 'Cascadia Code', Menlo, monospace;
-  font-size: var(--step--1);
-}
-
-.steps {
-  margin: 0;
-  padding-left: 1.3rem;
-  display: grid;
-  gap: var(--space-2);
-  color: var(--ink-soft);
-}
-
 code {
   font-family: ui-monospace, 'Cascadia Code', Menlo, monospace;
   font-size: 0.9em;
@@ -1852,10 +1834,6 @@ dialog::backdrop {
   .planner {
     padding: var(--space-4);
     box-shadow: 4px 4px 0 var(--marker);
-  }
-
-  .token-box {
-    flex-direction: column;
   }
 }
 
